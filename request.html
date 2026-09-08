@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Request a Service - ConnectX</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+
+<body>
+{% include '_support_widget.html' %}
+<div class="page-container">
+
+    <div class="page-card">
+        <h1>📝 Request a Service</h1>
+
+        <p>Tell us what help you need and we'll find the best provider.</p>
+
+        <form method="POST">
+
+            <div class="description-label">
+                <label for="requestDescription">What help do you need?</label>
+                <div class="voice-toolbar">
+                    <select id="reqVoiceLangSelect" class="voice-lang-select" aria-label="Speech language" title="Select speech language">
+                        <option value="en-IN" selected>English (IN)</option>
+                        <option value="hi-IN">हिन्दी (Hindi)</option>
+                        <option value="ta-IN">தமிழ் (Tamil)</option>
+                        <option value="te-IN">తెలుగు (Telugu)</option>
+                        <option value="kn-IN">ಕನ್ನಡ (Kannada)</option>
+                        <option value="en-US">English (US)</option>
+                    </select>
+                    <button type="button" class="voice-button" id="reqVoiceBtn" aria-label="Speak problem" title="Click to speak">
+                        <span id="reqVoiceIcon">🎙️</span> <span id="reqVoiceText">Speak</span>
+                    </button>
+                </div>
+            </div>
+
+            <div id="reqVoiceStatus" class="voice-live-status" style="display:none;">
+                <span id="reqVoiceDot">🔴</span> <span id="reqVoiceMsg">Listening... (auto-stops if silent for 6s)</span>
+            </div>
+
+            <textarea
+                id="requestDescription"
+                name="description"
+                placeholder="Example: My fan is not working (or use the mic above)..."
+                rows="5"
+                required></textarea>
+
+            <label for="requestTime">When do you need the service?</label>
+
+            <input
+                id="requestTime"
+                type="text"
+                name="time"
+                placeholder="Example: Tomorrow evening"
+                required>
+
+            <button type="submit" class="primary-action">
+                🔍 Find Best Providers
+            </button>
+
+        </form>
+
+        <a href="{{ url_for('home') }}" class="back-link">⬅ Back to Home</a>
+    </div>
+
+</div>
+
+<script>
+const reqVoiceBtn = document.getElementById('reqVoiceBtn');
+const reqVoiceIcon = document.getElementById('reqVoiceIcon');
+const reqVoiceText = document.getElementById('reqVoiceText');
+const reqVoiceLangSelect = document.getElementById('reqVoiceLangSelect');
+const reqVoiceStatus = document.getElementById('reqVoiceStatus');
+const reqVoiceMsg = document.getElementById('reqVoiceMsg');
+const reqDescription = document.getElementById('requestDescription');
+
+const langMap = {
+    'Hindi': 'hi-IN',
+    'Tamil': 'ta-IN',
+    'Telugu': 'te-IN',
+    'Kannada': 'kn-IN',
+    'English': 'en-IN'
+};
+const appLang = window.gigconnectLanguage || '{{ session.get("language", "English") }}';
+if (langMap[appLang] && reqVoiceLangSelect) {
+    reqVoiceLangSelect.value = langMap[appLang];
+}
+
+let recognition = null;
+let isListening = false;
+let baseText = '';
+let accumulatedFinalText = '';
+let silenceTimer = null;
+const SILENCE_LIMIT_MS = 6000;
+const SpeechRecognitionClass = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+function resetSilenceTimer() {
+    if (silenceTimer) clearTimeout(silenceTimer);
+    silenceTimer = setTimeout(() => {
+        if (isListening) handleSilenceAutoStop();
+    }, SILENCE_LIMIT_MS);
+}
+
+function clearSilenceTimer() {
+    if (silenceTimer) {
+        clearTimeout(silenceTimer);
+        silenceTimer = null;
+    }
+}
+
+function handleSilenceAutoStop() {
+    isListening = false;
+    clearSilenceTimer();
+    if (recognition) {
+        try { recognition.stop(); } catch (e) {}
+    }
+    reqVoiceBtn.classList.remove('is-listening');
+    reqVoiceIcon.textContent = '🎙️';
+    reqVoiceText.textContent = 'Speak';
+    if (reqDescription.value.trim()) {
+        updateVoiceStatus('Voice input stopped after 6s silence. Tap Speak to continue.', 'success');
+        setTimeout(hideVoiceStatus, 4000);
+    } else {
+        updateVoiceStatus('Voice input stopped due to 6s inactivity.', 'error');
+        setTimeout(hideVoiceStatus, 3500);
+    }
+}
+
+function updateVoiceStatus(msg, state = 'listening') {
+    if (!reqVoiceStatus) return;
+    reqVoiceStatus.style.display = 'flex';
+    reqVoiceStatus.className = 'voice-live-status ' + (state === 'error' ? 'is-error' : state === 'listening' ? 'is-listening' : '');
+    reqVoiceMsg.textContent = msg;
+}
+
+function hideVoiceStatus() {
+    if (reqVoiceStatus) reqVoiceStatus.style.display = 'none';
+}
+
+function startListening() {
+    if (!SpeechRecognitionClass) {
+        updateVoiceStatus('Voice recognition is not supported in this browser.', 'error');
+        return;
+    }
+
+    try {
+        if (recognition) {
+            try { recognition.abort(); } catch (e) {}
+        }
+        recognition = new SpeechRecognitionClass();
+        recognition.lang = reqVoiceLangSelect ? reqVoiceLangSelect.value : 'en-IN';
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.maxAlternatives = 1;
+
+        baseText = reqDescription.value.trim();
+        accumulatedFinalText = '';
+
+        recognition.onstart = () => {
+            isListening = true;
+            reqVoiceBtn.classList.add('is-listening');
+            reqVoiceIcon.textContent = '⏹️';
+            reqVoiceText.textContent = 'Stop';
+            updateVoiceStatus('Listening... (auto-stops if silent for 6s)', 'listening');
+            resetSilenceTimer();
+        };
+
+        recognition.onresult = (event) => {
+            resetSilenceTimer();
+            let interimTranscript = '';
+            let currentFinal = '';
+
+            for (let i = 0; i < event.results.length; i++) {
+                const res = event.results[i];
+                if (res.isFinal) {
+                    currentFinal += res[0].transcript + ' ';
+                } else {
+                    interimTranscript += res[0].transcript;
+                }
+            }
+            accumulatedFinalText = currentFinal;
+            const allSpoken = (accumulatedFinalText + interimTranscript).trim();
+            if (allSpoken) {
+                reqDescription.value = baseText ? (baseText + ' ' + allSpoken) : allSpoken;
+            }
+            if (interimTranscript.trim()) {
+                updateVoiceStatus(`Hearing: "${interimTranscript.trim()}"`, 'listening');
+            }
+        };
+
+        recognition.onerror = (event) => {
+            if (event.error === 'no-speech') return;
+            isListening = false;
+            clearSilenceTimer();
+            reqVoiceBtn.classList.remove('is-listening');
+            reqVoiceIcon.textContent = '🎙️';
+            reqVoiceText.textContent = 'Speak';
+            updateVoiceStatus('Voice input stopped. Tap Speak to try again.', 'error');
+        };
+
+        recognition.onend = () => {
+            if (isListening) {
+                try {
+                    baseText = reqDescription.value.trim();
+                    accumulatedFinalText = '';
+                    recognition.start();
+                    return;
+                } catch (e) {}
+            }
+            isListening = false;
+            clearSilenceTimer();
+            reqVoiceBtn.classList.remove('is-listening');
+            reqVoiceIcon.textContent = '🎙️';
+            reqVoiceText.textContent = 'Speak';
+            if (reqDescription.value.trim()) {
+                updateVoiceStatus('Voice description captured.', 'success');
+                setTimeout(hideVoiceStatus, 4000);
+            }
+        };
+
+        recognition.start();
+    } catch (err) {
+        console.error('Request page speech start error:', err);
+        isListening = false;
+        clearSilenceTimer();
+        reqVoiceBtn.classList.remove('is-listening');
+        reqVoiceIcon.textContent = '🎙️';
+        reqVoiceText.textContent = 'Speak';
+        updateVoiceStatus('Could not start microphone.', 'error');
+    }
+}
+
+function stopListening() {
+    isListening = false;
+    clearSilenceTimer();
+    if (recognition) {
+        try { recognition.stop(); } catch (e) {}
+    }
+    reqVoiceBtn.classList.remove('is-listening');
+    reqVoiceIcon.textContent = '🎙️';
+    reqVoiceText.textContent = 'Speak';
+    if (reqDescription.value.trim()) {
+        updateVoiceStatus('Voice description captured.', 'success');
+        setTimeout(hideVoiceStatus, 3000);
+    } else {
+        hideVoiceStatus();
+    }
+}
+
+reqVoiceBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    if (isListening) {
+        stopListening();
+    } else {
+        startListening();
+    }
+});
+
+if (reqVoiceLangSelect) {
+    reqVoiceLangSelect.addEventListener('change', () => {
+        if (isListening) {
+            stopListening();
+            startListening();
+        }
+    });
+}
+</script>
+</body>
+</html>

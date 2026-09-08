@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Booking Confirmed - ConnectX</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+{% include '_support_widget.html' %}
+<div class="flow-shell">
+    <header class="flow-header"><a class="brand-mark" href="{{ url_for('services_page') }}">CX</a><span>ConnectX</span></header>
+    <main class="flow-card">
+        <div class="success-mark">✓</div>
+        <p class="eyebrow">BOOKING CONFIRMED</p>
+        <h1>Your service booking is confirmed.</h1>
+        <p class="intro">Your request is now in progress. The assigned provider will contact you shortly.</p>
+
+        <div class="summary-list">
+            <div><span>Provider</span><strong>{{ booking.provider }}</strong></div>
+            <div><span>Service</span><strong>{{ booking.service }}</strong></div>
+            <div><span>Time</span><strong>{{ booking.time }}</strong></div>
+            <div><span>Status</span><strong>{{ booking.status }}</strong></div>
+        </div>
+
+        <div class="status-actions">
+            <a class="secondary-action" href="{{ url_for('view_bookings') }}">📋 View My Bookings</a>
+            <a class="secondary-action" href="{{ url_for('services_page') }}">🏠 Back to Services</a>
+        </div>
+    </main>
+</div>
+<nav class="bottom-nav" aria-label="Main navigation">
+    <a href="{{ url_for('services_page') }}"><span>⌂</span>Home</a>
+    <a href="{{ url_for('profile_page') }}"><span>◎</span>Profile</a>
+    <a href="{{ url_for('requests_page') }}" class="request-link">
+        <span>✉</span>Requests
+        {% if unread_request_count %}<span class="nav-badge">{{ unread_request_count }}</span>{% endif %}
+    </a>
+    <a href="{{ url_for('help_page') }}"><span>?</span>Help</a>
+</nav>
+</body>
+</html>

@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Problem Details - ConnectX</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+{% include '_support_widget.html' %}
+<div class="flow-shell">
+    <header class="flow-header"><a class="brand-mark" href="{{ url_for('services_page') }}">CX</a><span>ConnectX</span><span class="step-count">3 of 6</span></header>
+    <main class="flow-card">
+        <p class="eyebrow">A LITTLE MORE DETAIL</p>
+        <h1>Tell us about your problem</h1>
+        <p class="intro">Selected: <strong>{{ services|join(', ') }}</strong></p>
+        {% if error %}<div class="form-error">{{ error }}</div>{% endif %}
+        <form method="POST" enctype="multipart/form-data" class="flow-form">
+            <div class="description-label">
+                <label for="description">What needs attention?</label>
+                <div class="voice-toolbar">
+                    <select id="voiceLangSelect" class="voice-lang-select" aria-label="Voice input language" title="Select speech language">
+                        <option value="en-IN" selected>English (India)</option>
+                        <option value="hi-IN">हिन्दी (Hindi)</option>
+                        <option value="ta-IN">தமிழ் (Tamil)</option>
+                        <option value="te-IN">తెలుగు (Telugu)</option>
+                        <option value="kn-IN">ಕನ್ನಡ (Kannada)</option>
+                        <option value="en-US">English (US)</option>
+                    </select>
+                    <button type="button" class="voice-button" id="voiceButton" aria-label="Describe by voice" title="Click to start speaking">
+                        <span id="voiceIcon">🎙️</span> <span id="voiceBtnText">Speak</span>
+                    </button>
+                </div>
+            </div>
+
+            <div id="voiceLiveStatus" class="voice-live-status" style="display:none;">
+                <span id="voiceStatusDot">🔴</span> <span id="voiceMessage">Listening... speak into your microphone.</span>
+            </div>
+
+            <textarea id="description" name="description" rows="7" minlength="10" placeholder="Describe what happened and what you need help with (or use the mic above)..." required></textarea>
+            <p class="field-hint">{{ hint }}</p>
+            <label for="image">Add a photo <span class="optional">Optional</span></label>
+            <input id="image" name="image" type="file" accept="image/*">
+            <label for="requested_time">When do you need help?</label>
+            <input id="requested_time" name="requested_time" type="datetime-local" required>
+            <button type="submit" class="primary-action">Find Nearby Providers <span>-></span></button>
+        </form>
+    </main>
+</div>
+<nav class="bottom-nav" aria-label="Main navigation">
+    <a href="{{ url_for('services_page') }}"><span>⌂</span>Home</a>
+    <a href="{{ url_for('profile_page') }}"><span>◎</span>Profile</a>
+    <a href="{{ url_for('requests_page') }}" class="request-link">
+        <span>✉</span>Requests
+        {% if unread_request_count %}<span class="nav-badge">{{ unread_request_count }}</span>{% endif %}
+    </a>
+    <a href="{{ url_for('help_page') }}"><span>?</span>Help</a>
+</nav>
+
+<script>
+const voiceButton = document.getElementById('voiceButton');
+const voiceIcon = document.getElementById('voiceIcon');
+const voiceBtnText = document.getElementById('voiceBtnText');
+const voiceLangSelect = document.getElementById('voiceLangSelect');
+const voiceLiveStatus = document.getElementById('voiceLiveStatus');
+const voiceMessage = document.getElementById('voiceMessage');
+const description = document.getElementById('description');
+
+// Match voice language to session language if available
+const langMap = {
+    'Hindi': 'hi-IN',
+    'Tamil': 'ta-IN',
+    'Telugu': 'te-IN',
+    'Kannada': 'kn-IN',
+    'English': 'en-IN'
+};
+const appLang = window.gigconnectLanguage || '{{ session.get("language", "English") }}';
+if (langMap[appLang] && voiceLangSelect) {
+    voiceLangSelect.value = langMap[appLang];
+}
+
+let recognition = null;
+let isListening = false;
+let baseText = '';
+let accumulatedFinalText = '';
+let silenceTimer = null;
+const SILENCE_LIMIT_MS = 6000; // 6-second inactivity auto-stop
+
+const SpeechRecognitionClass = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+function resetSilenceTimer() {
+    if (silenceTimer) clearTimeout(silenceTimer);
+    silenceTimer = setTimeout(() => {
+        if (isListening) {
+            handleSilenceAutoStop();
+        }
+    }, SILENCE_LIMIT_MS);
+}
+
+function clearSilenceTimer() {
+    if (silenceTimer) {
+        clearTimeout(silenceTimer);
+        silenceTimer = null;
+    }
+}
+
+function handleSilenceAutoStop() {
+    isListening = false;
+    clearSilenceTimer();
+    if (recognition) {
+        try { recognition.stop(); } catch (e) {}
+    }
+    voiceButton.classList.remove('is-listening');
+    voiceIcon.textContent = '🎙️';
+    voiceBtnText.textContent = 'Speak';
+    if (description.value.trim()) {
+        updateStatus('Voice input stopped after 6s silence. Tap Speak to continue.', 'success');
+        setTimeout(hideStatus, 4000);
+    } else {
+        updateStatus('Voice input stopped due to 6s inactivity.', 'error');
+        setTimeout(hideStatus, 3500);
+    }
+}
+
+function updateStatus(msg, state = 'listening') {
+    if (!voiceLiveStatus) return;
+    voiceLiveStatus.style.display = 'flex';
+    voiceLiveStatus.className = 'voice-live-status ' + (state === 'error' ? 'is-error' : state === 'listening' ? 'is-listening' : '');
+    voiceMessage.textContent = msg;
+}
+
+function hideStatus() {
+    if (voiceLiveStatus) {
+        voiceLiveStatus.style.display = 'none';
+    }
+}
+
+function startListening() {
+    if (!SpeechRecognitionClass) {
+        updateStatus('Voice recognition is not supported in this browser. Please use Chrome, Edge, or Safari.', 'error');
+        return;
+    }
+
+    try {
+        if (recognition) {
+            try { recognition.abort(); } catch (e) {}
+        }
+
+        recognition = new SpeechRecognitionClass();
+        recognition.lang = voiceLangSelect ? voiceLangSelect.value : 'en-IN';
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.maxAlternatives = 1;
+
+        baseText = description.value.trim();
+        accumulatedFinalText = '';
+
+        recognition.onstart = () => {
+            isListening = true;
+            voiceButton.classList.add('is-listening');
+            voiceIcon.textContent = '⏹️';
+            voiceBtnText.textContent = 'Stop';
+            const selectedLangName = voiceLangSelect.options[voiceLangSelect.selectedIndex].text;
+            updateStatus(`Listening in ${selectedLangName}... (auto-stops if silent for 6s)`, 'listening');
+            resetSilenceTimer();
+        };
+
+        recognition.onresult = (event) => {
+            resetSilenceTimer(); // Reset 6-second countdown on hearing speech
+
+            let interimTranscript = '';
+            let currentFinal = '';
+
+            for (let i = 0; i < event.results.length; i++) {
+                const result = event.results[i];
+                if (result.isFinal) {
+                    currentFinal += result[0].transcript + ' ';
+                } else {
+                    interimTranscript += result[0].transcript;
+                }
+            }
+
+            accumulatedFinalText = currentFinal;
+
+            // Live streaming transcript into textarea
+            const allSpoken = (accumulatedFinalText + interimTranscript).trim();
+            if (allSpoken) {
+                description.value = baseText ? (baseText + ' ' + allSpoken) : allSpoken;
+            }
+
+            if (interimTranscript.trim()) {
+                updateStatus(`Hearing: "${interimTranscript.trim()}"`, 'listening');
+            }
+        };
+
+        recognition.onerror = (event) => {
+            console.warn('Speech recognition error:', event.error);
+            if (event.error === 'no-speech') {
+                return;
+            }
+            isListening = false;
+            clearSilenceTimer();
+            voiceButton.classList.remove('is-listening');
+            voiceIcon.textContent = '🎙️';
+            voiceBtnText.textContent = 'Speak';
+
+            const errorMsgs = {
+                'not-allowed': 'Microphone permission was denied. Please allow microphone access in your browser settings.',
+                'audio-capture': 'No microphone detected on your device.',
+                'network': 'Network error during voice recognition. Please check internet connection.',
+                'service-not-allowed': 'Speech service is restricted by your browser.'
+            };
+            updateStatus(errorMsgs[event.error] || 'Voice input stopped. You can type or tap Speak to try again.', 'error');
+        };
+
+        recognition.onend = () => {
+            if (isListening) {
+                try {
+                    baseText = description.value.trim();
+                    accumulatedFinalText = '';
+                    recognition.start();
+                    return;
+                } catch (e) {}
+            }
+            isListening = false;
+            clearSilenceTimer();
+            voiceButton.classList.remove('is-listening');
+            voiceIcon.textContent = '🎙️';
+            voiceBtnText.textContent = 'Speak';
+            if (description.value.trim()) {
+                updateStatus('Voice description captured successfully!', 'success');
+                setTimeout(hideStatus, 4000);
+            }
+        };
+
+        recognition.start();
+
+    } catch (err) {
+        console.error('Failed to start speech recognition:', err);
+        isListening = false;
+        clearSilenceTimer();
+        voiceButton.classList.remove('is-listening');
+        voiceIcon.textContent = '🎙️';
+        voiceBtnText.textContent = 'Speak';
+        updateStatus('Could not access microphone. Please ensure microphone permissions are granted.', 'error');
+    }
+}
+
+function stopListening() {
+    isListening = false;
+    clearSilenceTimer();
+    if (recognition) {
+        try {
+            recognition.stop();
+        } catch (e) {}
+    }
+    voiceButton.classList.remove('is-listening');
+    voiceIcon.textContent = '🎙️';
+    voiceBtnText.textContent = 'Speak';
+    if (description.value.trim()) {
+        updateStatus('Voice description captured.', 'success');
+        setTimeout(hideStatus, 3000);
+    } else {
+        hideStatus();
+    }
+}
+
+voiceButton.addEventListener('click', () => {
+    if (isListening) {
+        stopListening();
+    } else {
+        startListening();
+    }
+});
+
+if (voiceLangSelect) {
+    voiceLangSelect.addEventListener('change', () => {
+        if (isListening) {
+            stopListening();
+            startListening();
+        }
+    });
+}
+</script>
+</body>
+</html>

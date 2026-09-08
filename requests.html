@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Requests - ConnectX</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+{% include '_support_widget.html' %}
+<div class="flow-shell">
+    <header class="flow-header"><a class="brand-mark" href="{{ url_for('services_page') }}">CX</a><span>ConnectX</span></header>
+    <main class="flow-card wide-card">
+        <p class="eyebrow">SERVICE REQUESTS</p>
+        <h1>My requests</h1>
+        {% if requests %}
+            <div class="request-list">
+                {% for request in requests %}
+                    <article class="request-card">
+                        <div class="request-head">
+                            <strong>{{ request.service }}</strong>
+                            <span class="request-status">{{ request.status }}</span>
+                        </div>
+                        <p><b>Provider:</b> {{ request.provider_name }}</p>
+                        <p><b>Time:</b> {{ request.requested_time }}</p>
+                        <p><b>Price:</b> {{ request.estimated_price }}</p>
+                        <p><b>Message:</b> {{ request.description }}</p>
+                        <div style="margin-top: 14px;">
+                            <a href="{{ url_for('request_status', request_id=request.id) }}" class="secondary-action" style="padding: 7px 16px; font-size: 0.85rem; display: inline-flex;">📍 Track Live Status →</a>
+                        </div>
+                    </article>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="empty-state">
+                <span>✉</span>
+                <h2>No requests yet</h2>
+                <p>Your sent requests will appear here.</p>
+            </div>
+        {% endif %}
+    </main>
+</div>
+<nav class="bottom-nav" aria-label="Main navigation">
+    <a href="{{ url_for('services_page') }}"><span>⌂</span>Home</a>
+    <a href="{{ url_for('profile_page') }}"><span>◎</span>Profile</a>
+    <a class="active request-link" href="{{ url_for('requests_page') }}">
+        <span>✉</span>Requests
+        {% if unread_request_count %}<span class="nav-badge">{{ unread_request_count }}</span>{% endif %}
+    </a>
+    <a href="{{ url_for('help_page') }}"><span>?</span>Help</a>
+</nav>
+</body>
+</html>

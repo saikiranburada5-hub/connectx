@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Smart Matching</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+
+<body>
+{% include '_support_widget.html' %}
+
+<div class="page-container">
+
+    <div class="page-card">
+
+        <h1>🤖 Smart Service Matching</h1>
+
+        <div class="request-info">
+            <p><b>Your Request:</b></p>
+            <p>{{ description }}</p>
+
+            <p><b>Required Time:</b> {{ time }}</p>
+
+            <h2>🔍 Detected Service: {{ service }}</h2>
+        </div>
+
+        {% if providers %}
+
+            <h2>👷 Recommended Providers</h2>
+
+            {% for provider in providers %}
+
+            <div class="provider-card">
+
+                <h3>👷 {{ provider.name }}</h3>
+
+                <p>🛠 Skill: {{ provider.skill }}</p>
+                <p>📍 location: {{ provider.location }}</p>
+                <p>⏰ Availability: {{ provider.availability }}</p>
+                <p>📅 Experience: {{ provider.experience }} years</p>
+                <p>⭐ Rating: {{ provider.rating }}</p>
+
+                <div class="match-score">
+                    🤖 Match Score:
+                    <strong>{{ provider.score }}%</strong>
+                </div>
+
+                <form action="/book" method="POST">
+                    <input type="hidden"
+                           name="description"
+                           value="{{description}}">
+
+                    <input type="hidden"
+                           name="provider_name"
+                           value="{{ provider.name }}">
+
+                    <input type="hidden"
+                           name="service"
+                           value="{{ service }}">
+
+                    <input type="hidden"
+                           name="time"
+                           value="{{ time }}">
+
+                    <button type="submit">
+                        📅 Book Provider
+                    </button>
+
+                </form>
+
+            </div>
+
+            {% endfor %}
+
+        {% else %}
+
+            <div class="no-result">
+                <h2>😔 No matching providers found</h2>
+                <p>Try describing another service.</p>
+            </div>
+
+        {% endif %}
+
+        <a href="/request">⬅ Make Another Request</a>
+
+    </div>
+
+</div>
+
+</body>
+</html>

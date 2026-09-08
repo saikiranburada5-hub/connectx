@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Login - ConnectX</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='styles.css') }}">
+</head>
+
+<body>
+
+<div class="login-box">
+
+    <h1><span class="brand-symbol" aria-hidden="true">C</span> ConnectX</h1>
+
+    <h2>Login / Get Started</h2>
+
+    <p>
+        Enter your phone number to continue.
+    </p>
+
+    {% if error %}
+        <div class="error-banner">
+            {{ error }}
+        </div>
+    {% endif %}
+
+    <div id="authAlert" class="error-banner" style="display: none;"></div>
+
+    <!-- STEP 1: PHONE NUMBER -->
+
+    <form id="phoneForm">
+
+        <label><span class="detail-symbol" aria-hidden="true">📱</span> Phone Number</label>
+
+        <div class="phone-input">
+            <select id="countryCode" aria-label="Country code">
+                <option value="+91" selected>+91 India</option>
+                <option value="+1">+1 USA/Canada</option>
+                <option value="+44">+44 UK</option>
+                <option value="+971">+971 UAE</option>
+            </select>
+            <input
+                type="tel"
+                id="phone"
+                name="phone"
+                placeholder="Enter phone number"
+                pattern="[0-9]{10}"
+                maxlength="10"
+                required
+            >
+        </div>
+
+        <button id="sendOtpButton" type="submit">
+            <span class="button-symbol" aria-hidden="true">➡</span> Send OTP
+        </button>
+
+    </form>
+
+    <!-- STEP 2: OTP VERIFICATION -->
+
+    <form id="otpForm" style="display:none;">
+
+        <label><span class="detail-symbol" aria-hidden="true">🔐</span> One-Time Password</label>
+
+        <p id="otpMessage" class="otp-message" style="margin-bottom: 14px; font-size: 0.95rem; color: var(--navy); line-height: 1.4;"></p>
+
+        <input
+            type="text"
+            id="otp"
+            inputmode="numeric"
+            autocomplete="one-time-code"
+            placeholder="Enter 6-digit SMS code"
+            pattern="[0-9]{6}"
+            maxlength="6"
+            required
+        >
+
+        <button id="verifyOtpButton" type="submit">
+            <span class="button-symbol" aria-hidden="true">✓</span> Verify OTP
+        </button>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px; flex-wrap: wrap; gap: 8px;">
+            <button type="button" class="text-btn-link" id="changePhoneButton">
+                ← Change phone number
+            </button>
+            <button type="button" class="text-btn-link" id="resendOtpButton" style="color: var(--blue); font-weight: 600;">
+                Resend OTP
+            </button>
+        </div>
+
+    </form>
+
+
+    <!-- STEP 3: NEW USER DETAILS -->
+
+    <form method="POST"
+          id="detailsForm"
+          style="display:none;">
+
+        <!-- Phone is already entered -->
+        <input
+            type="hidden"
+            name="phone"
+            id="savedPhone"
+        >
+
+        <label><span class="detail-symbol" aria-hidden="true">👤</span> Name</label>
+
+        <input
+            type="text"
+            name="name"
+            placeholder="Enter your name"
+            required
+        >
+
+
+        <label><span class="detail-symbol" aria-hidden="true">✉</span> Email ID</label>
+
+        <input
+            type="email"
+            name="email"
+            placeholder="Enter your email"
+            required
+        >
+
+
+        <input type="hidden" name="role" value="customer">
+
+
+        <button type="submit">
+            <span class="button-symbol" aria-hidden="true">＋</span> Create Account
+        </button>
+
+    </form>
+
+
+    <br>
+
+    <a href="/">
+        <span class="back-symbol" aria-hidden="true">←</span> Back to Home
+    </a>
+
+</div>
+
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
+import { getAuth, RecaptchaVerifier, signInWithPhoneNumber } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
+
+const firebaseConfig = {{ firebase_config|tojson }};
+if (firebaseConfig) {
+    try {
+        const firebaseApp = initializeApp(firebaseConfig);
+        window.firebasePhoneAuth = {
+            auth: getAuth(firebaseApp),
+            RecaptchaVerifier,
+            signInWithPhoneNumber,
+            confirmationResult: null,
+            verifier: null,
+        };
+    } catch (e) {
+        console.warn("Firebase initialization warning:", e);
+    }
+}
+</script>
+
+<script>
+
+function showAlert(msg) {
+    const el = document.getElementById("authAlert");
+    if (el) {
+        el.textContent = msg;
+        el.style.display = "block";
+    } else {
+        alert(msg);
+    }
+}
+
+function hideAlert() {
+    const el = document.getElementById("authAlert");
+    if (el) {
+        el.style.display = "none";
+    }
+}
+
+let resendCountdownTimer = null;
+
+function startResendCooldown(seconds = 30) {
+    const resendBtn = document.getElementById("resendOtpButton");
+    if (!resendBtn) return;
+    if (resendCountdownTimer) clearInterval(resendCountdownTimer);
+    
+    let remaining = seconds;
+    resendBtn.disabled = true;
+    resendBtn.style.opacity = "0.6";
+    resendBtn.textContent = `Resend in ${remaining}s`;
+
+    resendCountdownTimer = setInterval(() => {
+        remaining--;
+        if (remaining <= 0) {
+            clearInterval(resendCountdownTimer);
+            resendCountdownTimer = null;
+            resendBtn.disabled = false;
+            resendBtn.style.opacity = "1";
+            resendBtn.textContent = "Resend OTP";
+        } else {
+            resendBtn.textContent = `Resend in ${remaining}s`;
+        }
+    }, 1000);
+}
+
+async function sendOtp() {
+    hideAlert();
+    const countryCode = document.getElementById("countryCode").value;
+    const phoneNumber = document.getElementById("phone").value.trim();
+    const phone = countryCode + phoneNumber;
+
+    if ((countryCode === "+91" && !/^[0-9]{10}$/.test(phoneNumber)) ||
+        (countryCode !== "+91" && !/^[0-9]{7,15}$/.test(phoneNumber))) {
+        showAlert("Please enter a valid phone number.");
+        return;
+    }
+
+    const sendBtn = document.getElementById("sendOtpButton");
+    const firebasePhoneAuth = window.firebasePhoneAuth;
+
+    // 1. LIVE FIREBASE AUTH MODE (When Firebase keys are in .env)
+    if (firebasePhoneAuth && firebasePhoneAuth.auth) {
+        try {
+            sendBtn.disabled = true;
+            sendBtn.textContent = "Sending SMS...";
+
+            if (firebasePhoneAuth.verifier) firebasePhoneAuth.verifier.clear();
+            firebasePhoneAuth.verifier = new firebasePhoneAuth.RecaptchaVerifier(
+                firebasePhoneAuth.auth,
+                "sendOtpButton",
+                { size: "invisible" }
+            );
+            firebasePhoneAuth.confirmationResult = await firebasePhoneAuth.signInWithPhoneNumber(
+                firebasePhoneAuth.auth,
+                phone,
+                firebasePhoneAuth.verifier
+            );
+            document.getElementById("phoneForm").style.display = "none";
+            document.getElementById("otpForm").style.display = "block";
+            document.getElementById("otpMessage").innerHTML = `SMS verification code sent to <strong>${phone}</strong>. Enter the 6-digit code:`;
+            document.getElementById("otp").value = "";
+            document.getElementById("otp").focus();
+            startResendCooldown(30);
+        } catch (error) {
+            console.error("Firebase sendOtp error:", error);
+            if (firebasePhoneAuth.verifier) firebasePhoneAuth.verifier.clear();
+            firebasePhoneAuth.verifier = null;
+            showAlert(error.message || "Could not send SMS OTP. Please check your Firebase configuration or try again.");
+        } finally {
+            sendBtn.disabled = false;
+            sendBtn.innerHTML = '<span class="button-symbol" aria-hidden="true">➡</span> Send OTP';
+        }
+        return;
+    }
+
+    // 2. BACKEND SMS GATEWAY (Fast2SMS, Twilio, 2Factor, MSG91)
+    try {
+        sendBtn.disabled = true;
+        sendBtn.textContent = "Sending SMS OTP...";
+
+        const response = await fetch("/send-otp", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ phone: phone })
+        });
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.error || "Failed to dispatch SMS OTP.");
+        }
+
+        document.getElementById("phoneForm").style.display = "none";
+        document.getElementById("otpForm").style.display = "block";
+        
+        if (data.sent_live) {
+            document.getElementById("otpMessage").innerHTML = `
+                <div style="background: #ecfdf5; border: 1px solid #6ee7b7; padding: 10px 14px; border-radius: 10px; margin-bottom: 12px; color: #065f46; font-size: 0.9rem; line-height: 1.4;">
+                    ✅ <strong>Live SMS Dispatched:</strong> A real verification SMS has been sent to <strong>${phone}</strong> via ${data.provider || 'SMS Gateway'}.
+                </div>
+                Please check your mobile phone messages and enter the 6-digit code:
+            `;
+        } else {
+            const errorDetail = data.gateway_error || "SMS provider key not yet connected in .env";
+            document.getElementById("otpMessage").innerHTML = `
+                <div style="background: #fffbeb; border: 1px solid #fde047; padding: 12px 14px; border-radius: 10px; margin-bottom: 14px; color: #854d0e; font-size: 0.88rem; line-height: 1.45; text-align: left;">
+                    <strong style="color: #92400e;">⚠️ Live Telecom SMS Status:</strong><br>
+                    ${errorDetail}<br>
+                    <div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed #fcd34d; font-size: 0.92rem; color: #1e3a8a; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                        <span>🔑 OTP Code: <strong style="font-size: 1.15rem; letter-spacing: 2px; background: #e0f2fe; padding: 3px 10px; border-radius: 6px; color: #1d4ed8;">${data.otp || '123456'}</strong></span>
+                        <button type="button" class="secondary-action" style="padding: 4px 10px; font-size: 0.82rem; min-height: 30px; margin: 0;" onclick="document.getElementById('otp').value='${data.otp || '123456'}'; document.getElementById('otp').focus();">Auto-fill Code</button>
+                    </div>
+                </div>
+                Enter the 6-digit verification code below:
+            `;
+        }
+
+        document.getElementById("otp").value = "";
+        document.getElementById("otp").focus();
+        startResendCooldown(30);
+    } catch (error) {
+        console.error("sendOtp error:", error);
+        showAlert(error.message || "Failed to send SMS OTP. Please check the phone number and try again.");
+    } finally {
+        sendBtn.disabled = false;
+        sendBtn.innerHTML = '<span class="button-symbol" aria-hidden="true">➡</span> Send OTP';
+    }
+}
+
+document.getElementById("phoneForm").addEventListener("submit", function (event) {
+    event.preventDefault();
+    sendOtp();
+});
+
+document.getElementById("changePhoneButton")?.addEventListener("click", function() {
+    hideAlert();
+    document.getElementById("otpForm").style.display = "none";
+    document.getElementById("phoneForm").style.display = "block";
+});
+
+document.getElementById("resendOtpButton")?.addEventListener("click", async function() {
+    hideAlert();
+    const countryCode = document.getElementById("countryCode").value;
+    const phoneNumber = document.getElementById("phone").value.trim();
+    const phone = countryCode + phoneNumber;
+    const resendBtn = document.getElementById("resendOtpButton");
+    
+    try {
+        resendBtn.disabled = true;
+        resendBtn.textContent = "Resending...";
+        const response = await fetch("/resend-otp", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ phone: phone })
+        });
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.error || "Failed to resend OTP.");
+        }
+        startResendCooldown(30);
+        if (!data.sent_live && data.otp) {
+            document.getElementById("otpMessage").innerHTML = `
+                <div style="background: #fffbeb; border: 1px solid #fde047; padding: 12px 14px; border-radius: 10px; margin-bottom: 14px; color: #854d0e; font-size: 0.88rem; line-height: 1.45; text-align: left;">
+                    <strong style="color: #92400e;">⚠️ Live Telecom SMS Status:</strong><br>
+                    ${data.gateway_error || "SMS provider key not yet connected in .env"}<br>
+                    <div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed #fcd34d; font-size: 0.92rem; color: #1e3a8a; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                        <span>🔑 New OTP Code: <strong style="font-size: 1.15rem; letter-spacing: 2px; background: #e0f2fe; padding: 3px 10px; border-radius: 6px; color: #1d4ed8;">${data.otp}</strong></span>
+                        <button type="button" class="secondary-action" style="padding: 4px 10px; font-size: 0.82rem; min-height: 30px; margin: 0;" onclick="document.getElementById('otp').value='${data.otp}'; document.getElementById('otp').focus();">Auto-fill Code</button>
+                    </div>
+                </div>
+                Enter the new 6-digit verification code below:
+            `;
+        }
+    } catch (err) {
+        showAlert(err.message);
+        resendBtn.disabled = false;
+        resendBtn.textContent = "Resend OTP";
+    }
+});
+
+document.getElementById("otpForm").addEventListener("submit", async function (event) {
+    event.preventDefault();
+    hideAlert();
+
+    const otp = document.getElementById("otp").value.trim();
+    const phone = document.getElementById("countryCode").value + document.getElementById("phone").value.trim();
+    const verifyBtn = document.getElementById("verifyOtpButton");
+
+    if (!/^[0-9]{6}$/.test(otp)) {
+        showAlert("Please enter a 6-digit numeric OTP.");
+        return;
+    }
+
+    try {
+        verifyBtn.disabled = true;
+        verifyBtn.textContent = "Verifying...";
+
+        const firebasePhoneAuth = window.firebasePhoneAuth;
+
+        // 1. LIVE FIREBASE VERIFICATION
+        if (firebasePhoneAuth && firebasePhoneAuth.confirmationResult) {
+            const credential = await firebasePhoneAuth.confirmationResult.confirm(otp);
+            const idToken = await credential.user.getIdToken();
+            const response = await fetch("/verify-firebase-phone", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ phone: phone, id_token: idToken })
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.error || "Verification failed on server.");
+            }
+            if (data.exists) {
+                window.location.href = data.redirect || "/choose-language";
+                return;
+            }
+
+            document.getElementById("otpForm").style.display = "none";
+            document.getElementById("detailsForm").style.display = "block";
+            document.getElementById("savedPhone").value = phone;
+            return;
+        }
+
+        // 2. VERIFY REAL SMS OTP VIA BACKEND
+        const response = await fetch("/verify-otp", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ phone: phone, otp: otp })
+        });
+        const data = await response.json();
+        if (!response.ok) {
+            throw new Error(data.error || "Invalid OTP code. Please check your SMS messages and try again.");
+        }
+
+        if (data.exists) {
+            window.location.href = data.redirect || "/choose-language";
+            return;
+        }
+
+        document.getElementById("otpForm").style.display = "none";
+        document.getElementById("detailsForm").style.display = "block";
+        document.getElementById("savedPhone").value = phone;
+
+    } catch (error) {
+        console.error("OTP verification error:", error);
+        showAlert(error.message || "OTP verification failed. Please check the code and try again.");
+    } finally {
+        verifyBtn.disabled = false;
+        verifyBtn.innerHTML = '<span class="button-symbol" aria-hidden="true">✓</span> Verify OTP';
+    }
+});
+
+</script>
+
+</body>
+
+</html>

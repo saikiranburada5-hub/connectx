@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+    <title>Provider Dashboard</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='styles.css') }}">
+
+</head>
+
+<body>
+
+<div class="container">
+
+    <h1>👷 Provider Dashboard</h1>
+
+    <p>
+        Welcome, <b>{{ session['name'] }}</b>!
+    </p>
+
+
+    <!-- ========================= -->
+    <!-- PROVIDER PROFILE -->
+    <!-- ========================= -->
+
+    <h2>👤 My Profile</h2>
+
+    {% if provider %}
+
+        <div class="profile-card">
+
+            <p>
+                👤 <b>Name:</b>
+                {{ provider.name }}
+            </p>
+
+            <p>
+                🛠️ <b>Skill:</b>
+                {{ provider.skill }}
+            </p>
+
+            <p>
+                📅 <b>Experience:</b>
+                {{ provider.experience }} years
+            </p>
+
+            <p>
+                📍 <b>Location:</b>
+                {{ provider.location }}
+            </p>
+
+            <p>
+                ⏰ <b>Availability:</b>
+                {{ provider.availability }}
+            </p>
+
+            <p>
+                ⭐ <b>Rating:</b>
+                {{ provider.rating }}
+            </p>
+
+        </div>
+
+        <br>
+
+        <!-- EDIT PROFILE BUTTON -->
+
+        <a href="{{ url_for('edit_profile') }}">
+            <button type="button">
+                ✏️ Edit Profile
+            </button>
+        </a>
+
+    {% else %}
+
+        <p>
+            You have not registered your provider profile yet.
+        </p>
+
+        <a href="{{ url_for('offer_skills') }}">
+            <button type="button">
+                🚀 Register as Provider
+            </button>
+        </a>
+
+    {% endif %}
+
+
+    <!-- ========================= -->
+    <!-- INCOMING REQUESTS -->
+    <!-- ========================= -->
+
+    <h2>📩 Incoming Service Requests</h2>
+
+    {% if bookings %}
+
+        {% for booking in bookings %}
+
+            <div class="booking-card">
+
+                <h3>
+                    🛠️ {{ booking.service }}
+                </h3>
+
+                <p>
+                    👤 <b>Customer:</b>
+                    {{ booking.customer }}
+                </p>
+
+                <p>
+                    📝 <b>Customer Request:</b>
+                    {{ booking.description }}
+                </p>
+
+                <p>
+                    ⏰ <b>Required Time:</b>
+                    {{ booking.time }}
+                </p>
+
+                <p>
+                    👷 <b>Assigned Provider:</b>
+                    {{ booking.provider }}
+                </p>
+
+                <p>
+                    📌 <b>Status:</b>
+                    {{ booking.status }}
+                </p>
+
+
+                <!-- ACCEPT BUTTON -->
+
+                {% if booking.status == "Pending" %}
+
+                    <form method="POST"
+                          action="{{ url_for('accept_booking',
+                          booking_id=booking.id) }}">
+
+                        <button type="submit">
+                            ✅ Accept Request
+                        </button>
+
+                    </form>
+
+                {% endif %}
+
+                {% if booking.status == "Accepted" %}
+                    <form method="POST" action="{{ url_for('complete_booking', booking_id=booking.id) }}">
+                        <button type="submit">✅ Mark service completed</button>
+                    </form>
+                {% endif %}
+
+            </div>
+
+            <hr>
+
+        {% endfor %}
+
+    {% else %}
+
+        <p>
+            📭 No service requests available.
+        </p>
+
+    {% endif %}
+
+
+    <!-- ========================= -->
+    <!-- NAVIGATION -->
+    <!-- ========================= -->
+
+    <br>
+
+    <a href="/">
+        🏠 Home
+    </a>
+
+    &nbsp;&nbsp;
+
+    <a href="{{ url_for('logout') }}">
+        🚪 Logout
+    </a>
+
+</div>
+
+</body>
+
+</html>
