@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Choose a Service - ConnectX</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+</head>
+<body>
+{% include '_support_widget.html' %}
+<div class="flow-shell">
+    <header class="flow-header"><a class="brand-mark" href="{{ url_for('location_page') }}">CX</a><span>ConnectX</span><span class="step-count">2 of 6</span></header>
+    <main class="flow-card wide-card">
+        <p class="eyebrow">WHAT CAN WE HELP WITH?</p>
+        <p class="welcome-message">Welcome back, <strong>{{ user_name }}</strong>!</p>
+        <h1>What service do you need?</h1>
+        <p class="intro">Pick one or more services. You can search or speak what you need.</p>
+        {% if error %}<div class="form-error">{{ error }}</div>{% endif %}
+        <form method="POST" id="servicesForm">
+            <div class="search-voice-container">
+                <div class="search-field">
+                    <span class="search-lens-icon" aria-hidden="true">⌕</span>
+                    <input id="serviceSearch" name="search" placeholder="Search services or tap 🎙️ to speak..." autocomplete="off">
+                    <button type="button" class="search-clear-btn" id="searchClearBtn" aria-label="Clear search query" title="Clear text">✕</button>
+                    <div class="search-controls">
+                        <select id="searchLangSelect" class="search-lang-select" aria-label="Speech recognition language" title="Select voice language">
+                            <option value="en-IN" selected>English (IN)</option>
+                            <option value="hi-IN">हिन्दी (Hindi)</option>
+                            <option value="ta-IN">தமிழ் (Tamil)</option>
+                            <option value="te-IN">తెలుగు (Telugu)</option>
+                            <option value="kn-IN">ಕನ್ನಡ (Kannada)</option>
+                            <option value="en-US">English (US)</option>
+                        </select>
+                        <button type="button" class="search-mic-btn" id="searchMicBtn" aria-label="Search by voice" title="Click to speak service name">
+                            <span id="searchMicIcon">🎙️</span> <span id="searchMicText">Speak</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="searchVoiceStatus" class="voice-live-status" style="display:none;">
+                    <span id="searchVoiceStatusDot">🔴</span>
+                    <span id="searchVoiceMessage">Listening... speak your service name (auto-stops if silent for 6s).</span>
+                </div>
+            </div>
+
+            <div id="noServicesFound" class="no-result" style="display:none; margin: 18px 0;">
+                <p>No services found matching "<strong id="noServicesQuery"></strong>". Try speaking another keyword or pick from below.</p>
+            </div>
+
+            <div class="service-grid" id="serviceGrid">
+                {% for icon, name, description in categories %}
+                <label class="service-option" data-service="{{ name|lower }} {{ description|lower }}">
+                    <input type="checkbox" name="services" value="{{ name }}">
+                    <span class="service-icon" aria-label="{{ name }}"><i data-lucide="{{ icon }}"></i></span><strong>{{ name }}</strong><small>{{ description }}</small>
+                </label>
+                {% endfor %}
+            </div>
+            <p id="selectedCount" class="selection-note">No services selected</p>
+            <button type="submit" class="primary-action">Continue to Problem Details <span>-></span></button>
+        </form>
+    </main>
+</div>
+<nav class="bottom-nav" aria-label="Main navigation">
+    <a href="{{ url_for('services_page') }}"><span>⌂</span>Home</a>
+    <a href="{{ url_for('profile_page') }}"><span>◎</span>Profile</a>
+    <a href="{{ url_for('requests_page') }}" class="request-link">
+        <span>✉</span>Requests
+        {% if unread_request_count %}<span class="nav-badge">{{ unread_request_count }}</span>{% endif %}
+    </a>
+    <a href="{{ url_for('help_page') }}"><span>?</span>Help</a>
+</nav>
+
+<script>
+const cards = [...document.querySelectorAll('.service-option')];
+const search = document.getElementById('serviceSearch');
+const clearBtn = document.getElementById('searchClearBtn');
+const count = document.getElementById('selectedCount');
+const noServicesFound = document.getElementById('noServicesFound');
+const noServicesQuery = document.getElementById('noServicesQuery');
+
+const searchMicBtn = document.getElementById('searchMicBtn');
+const searchMicIcon = document.getElementById('searchMicIcon');
+const searchMicText = document.getElementById('searchMicText');
+const searchLangSelect = document.getElementById('searchLangSelect');
+const searchVoiceStatus = document.getElementById('searchVoiceStatus');
+const searchVoiceMessage = document.getElementById('searchVoiceMessage');
+
+// Language selection mapping from session / global language
+const langMap = {
+    'Hindi': 'hi-IN',
+    'Tamil': 'ta-IN',
+    'Telugu': 'te-IN',
+    'Kannada': 'kn-IN',
+    'English': 'en-IN'
+};
+const appLang = window.gigconnectLanguage || '{{ session.get("language", "English") }}';
+if (langMap[appLang] && searchLangSelect) {
+    searchLangSelect.value = langMap[appLang];
+}
+
+// Checkbox selection counter
+function updateCount() {
+    const total = document.querySelectorAll('.service-option input:checked').length;
+    count.textContent = total ? `${total} service${total > 1 ? 's' : ''} selected` : 'No services selected';
+}
+cards.forEach(card => card.addEventListener('click', updateCount));
+
+// Filter services based on query
+function filterServices(rawQuery) {
+    const query = (rawQuery || '').toLowerCase().trim();
+    let visibleCount = 0;
+
+    cards.forEach(card => {
+        const text = card.dataset.service;
+        const matches = !query || text.includes(query);
+        card.hidden = !matches;
+        if (matches) visibleCount++;
+    });
+
+    if (clearBtn) {
+        clearBtn.style.display = query.length > 0 ? 'inline-flex' : 'none';
+    }
+
+    if (noServicesFound && noServicesQuery) {
+        if (visibleCount === 0 && query.length > 0) {
+            noServicesFound.style.display = 'block';
+            noServicesQuery.textContent = rawQuery;
+        } else {
+            noServicesFound.style.display = 'none';
+        }
+    }
+}
+
+search.addEventListener('input', () => {
+    filterServices(search.value);
+});
+
+if (clearBtn) {
+    clearBtn.addEventListener('click', () => {
+        search.value = '';
+        filterServices('');
+        search.focus();
+    });
+}
+
+// ==========================================
+// CONTINUOUS VOICE INPUT WITH 6-SECOND SILENCE AUTO-STOP
+// ==========================================
+let recognition = null;
+let isListening = false;
+let baseSearchText = '';
+let accumulatedFinalText = '';
+let silenceTimer = null;
+const SILENCE_LIMIT_MS = 6000; // 6-second inactivity auto-stop
+const SpeechRecognitionClass = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+function resetSilenceTimer() {
+    if (silenceTimer) clearTimeout(silenceTimer);
+    silenceTimer = setTimeout(() => {
+        if (isListening) {
+            handleSilenceAutoStop();
+        }
+    }, SILENCE_LIMIT_MS);
+}
+
+function clearSilenceTimer() {
+    if (silenceTimer) {
+        clearTimeout(silenceTimer);
+        silenceTimer = null;
+    }
+}
+
+function handleSilenceAutoStop() {
+    isListening = false;
+    clearSilenceTimer();
+    if (recognition) {
+        try { recognition.stop(); } catch (e) {}
+    }
+    searchMicBtn.classList.remove('is-listening');
+    searchMicIcon.textContent = '🎙️';
+    searchMicText.textContent = 'Speak';
+
+    if (search.value.trim()) {
+        updateVoiceStatus('Voice search stopped after 6s silence. Review services or tap Speak to continue.', 'success');
+        setTimeout(hideVoiceStatus, 4000);
+    } else {
+        updateVoiceStatus('Voice search stopped due to 6s inactivity.', 'error');
+        setTimeout(hideVoiceStatus, 3500);
+    }
+}
+
+function updateVoiceStatus(msg, state = 'listening') {
+    if (!searchVoiceStatus) return;
+    searchVoiceStatus.style.display = 'flex';
+    searchVoiceStatus.className = 'voice-live-status ' + (state === 'error' ? 'is-error' : state === 'listening' ? 'is-listening' : '');
+    searchVoiceMessage.textContent = msg;
+}
+
+function hideVoiceStatus() {
+    if (searchVoiceStatus) {
+        searchVoiceStatus.style.display = 'none';
+    }
+}
+
+function startListening() {
+    if (!SpeechRecognitionClass) {
+        updateVoiceStatus('Voice recognition is not supported in this browser. Please use Chrome, Edge, or Safari.', 'error');
+        return;
+    }
+
+    try {
+        if (recognition) {
+            try { recognition.abort(); } catch (e) {}
+        }
+
+        recognition = new SpeechRecognitionClass();
+        recognition.lang = searchLangSelect ? searchLangSelect.value : 'en-IN';
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.maxAlternatives = 1;
+
+        baseSearchText = search.value.trim();
+        accumulatedFinalText = '';
+
+        recognition.onstart = () => {
+            isListening = true;
+            searchMicBtn.classList.add('is-listening');
+            searchMicIcon.textContent = '⏹️';
+            searchMicText.textContent = 'Stop';
+            const selectedLangName = searchLangSelect.options[searchLangSelect.selectedIndex].text;
+            updateVoiceStatus(`Listening in ${selectedLangName}... speak a service (auto-stops if silent for 6s)`, 'listening');
+            resetSilenceTimer();
+        };
+
+        recognition.onresult = (event) => {
+            resetSilenceTimer(); // Reset 6-second countdown on hearing speech
+
+            let interimTranscript = '';
+            let currentFinal = '';
+
+            for (let i = 0; i < event.results.length; i++) {
+                const result = event.results[i];
+                if (result.isFinal) {
+                    currentFinal += result[0].transcript + ' ';
+                } else {
+                    interimTranscript += result[0].transcript;
+                }
+            }
+
+            accumulatedFinalText = currentFinal;
+
+            // Live streaming transcript into search box and filtering in real-time
+            const allSpoken = (accumulatedFinalText + interimTranscript).trim();
+            if (allSpoken) {
+                search.value = baseSearchText ? (baseSearchText + ' ' + allSpoken) : allSpoken;
+                filterServices(search.value);
+            }
+
+            if (interimTranscript.trim()) {
+                updateVoiceStatus(`Hearing: "${interimTranscript.trim()}"`, 'listening');
+            }
+        };
+
+        recognition.onerror = (event) => {
+            console.warn('Speech recognition error on services search:', event.error);
+            if (event.error === 'no-speech') {
+                return; // Let silence timer handle inactivity
+            }
+            isListening = false;
+            clearSilenceTimer();
+            searchMicBtn.classList.remove('is-listening');
+            searchMicIcon.textContent = '🎙️';
+            searchMicText.textContent = 'Speak';
+
+            const errorMsgs = {
+                'not-allowed': 'Microphone permission was denied. Please allow microphone access in your browser settings.',
+                'audio-capture': 'No microphone detected on your device.',
+                'network': 'Network error during voice recognition. Please check internet connection.',
+                'service-not-allowed': 'Speech service is restricted by your browser.'
+            };
+            updateVoiceStatus(errorMsgs[event.error] || 'Voice search stopped. Tap Speak to try again.', 'error');
+            setTimeout(hideVoiceStatus, 4000);
+        };
+
+        recognition.onend = () => {
+            if (isListening) {
+                try {
+                    baseSearchText = search.value.trim();
+                    accumulatedFinalText = '';
+                    recognition.start();
+                    return;
+                } catch (e) {}
+            }
+            isListening = false;
+            clearSilenceTimer();
+            searchMicBtn.classList.remove('is-listening');
+            searchMicIcon.textContent = '🎙️';
+            searchMicText.textContent = 'Speak';
+
+            if (search.value.trim()) {
+                updateVoiceStatus('Voice search captured! Review matching services below.', 'success');
+                setTimeout(hideVoiceStatus, 4000);
+            }
+        };
+
+        recognition.start();
+
+    } catch (err) {
+        console.error('Failed to start speech recognition on services search:', err);
+        isListening = false;
+        clearSilenceTimer();
+        searchMicBtn.classList.remove('is-listening');
+        searchMicIcon.textContent = '🎙️';
+        searchMicText.textContent = 'Speak';
+        updateVoiceStatus('Could not access microphone. Please ensure microphone permissions are granted.', 'error');
+        setTimeout(hideVoiceStatus, 4000);
+    }
+}
+
+function stopListening() {
+    isListening = false;
+    clearSilenceTimer();
+    if (recognition) {
+        try { recognition.stop(); } catch (e) {}
+    }
+    searchMicBtn.classList.remove('is-listening');
+    searchMicIcon.textContent = '🎙️';
+    searchMicText.textContent = 'Speak';
+    if (search.value.trim()) {
+        updateVoiceStatus('Voice search captured. Pick a service below.', 'success');
+        setTimeout(hideVoiceStatus, 3000);
+    } else {
+        hideVoiceStatus();
+    }
+}
+
+searchMicBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    if (isListening) {
+        stopListening();
+    } else {
+        startListening();
+    }
+});
+
+if (searchLangSelect) {
+    searchLangSelect.addEventListener('change', () => {
+        if (isListening) {
+            stopListening();
+            startListening();
+        }
+    });
+}
+
+lucide.createIcons();
+</script>
+</body>
+</html>

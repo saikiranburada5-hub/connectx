@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile - ConnectX</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+<div class="flow-shell">
+    <header class="flow-header">
+        <a class="brand-mark" href="{{ url_for('services_page') }}">CX</a>
+        <span>My Profile</span>
+        <span class="step-count">ACCOUNT</span>
+    </header>
+    <main class="flow-card profile-page">
+        <div class="profile-hero">
+            <div class="profile-avatar" aria-hidden="true">{{ session.get('name', 'G')[:1].upper() }}</div>
+            <div>
+                <p class="eyebrow">CUSTOMER ACCOUNT</p>
+                <h1>{{ session.get('name', 'Customer') }}</h1>
+                <p class="intro">Manage your details and preferences.</p>
+            </div>
+        </div>
+
+        <section class="profile-section" aria-labelledby="details-heading">
+            <div class="section-heading">
+                <h2 id="details-heading">Customer details</h2>
+                <span class="profile-status">Active</span>
+            </div>
+            <div class="profile-details">
+                <div><span>Name</span><strong>{{ session.get('name', 'Not available') }}</strong></div>
+                <div><span>Phone</span><strong>{{ session.get('phone', 'Not available') }}</strong></div>
+                <div><span>Email</span><strong>{{ session.get('email', 'Not available') }}</strong></div>
+            </div>
+        </section>
+
+        <section class="profile-section" aria-labelledby="preferences-heading">
+            <div class="section-heading">
+                <h2 id="preferences-heading">Preferences</h2>
+            </div>
+            <form method="POST" class="profile-preferences">
+                <label for="language">Language</label>
+                <select id="language" name="language">
+                    {% for option in ['English', 'Hindi', 'Kannada', 'Telugu', 'Tamil'] %}
+                    <option value="{{ option }}" {% if language == option %}selected{% endif %}>{{ option }}</option>
+                    {% endfor %}
+                </select>
+                <button class="primary-action" type="submit">Save language <span>-></span></button>
+            </form>
+        </section>
+
+        <section class="profile-section" aria-labelledby="addresses-heading">
+            <div class="section-heading">
+                <h2 id="addresses-heading">Saved addresses</h2>
+                <span class="profile-status">{{ addresses|length }}</span>
+            </div>
+            {% if addresses %}
+            <div class="saved-address-list">
+                {% for address in addresses %}
+                <div class="saved-address-card">
+                    <div>
+                        <strong>{{ address.label }}</strong>
+                        <span>{{ address.house_number }}{% if address.house_number %}, {% endif %}{{ address.street }}, {{ address.city }} - {{ address.pincode }}</span>
+                    </div>
+                    <form method="POST" action="{{ url_for('delete_saved_address', address_id=address.id) }}">
+                        <button class="address-delete" type="submit" aria-label="Delete {{ address.label }}">Delete</button>
+                    </form>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="empty-profile-note">No saved addresses yet.</p>
+            {% endif %}
+            <form method="POST" class="saved-address-form">
+                <input type="hidden" name="action" value="add_address">
+                <h3>Add an address</h3>
+                <input name="address_label" placeholder="Address label, e.g. Home" required>
+                <input name="house_number" placeholder="House / Flat number (optional)">
+                <input name="street" placeholder="Street / Area" required>
+                <div class="address-form-grid"><input name="city" placeholder="City" required><input name="pincode" placeholder="Pincode" inputmode="numeric" pattern="[0-9]{5,6}" required></div>
+                <button class="primary-action" type="submit">Add address <span>+</span></button>
+            </form>
+        </section>
+
+        <section class="profile-actions" aria-label="Account actions">
+            <a class="secondary-action" href="{{ url_for('view_bookings') }}">View my bookings</a>
+            <a class="logout-action" href="{{ url_for('logout') }}">Log out</a>
+        </section>
+    </main>
+</div>
+<nav class="bottom-nav" aria-label="Main navigation">
+    <a href="{{ url_for('services_page') }}"><span>⌂</span>Home</a>
+    <a href="{{ url_for('requests_page') }}" class="request-link">
+        <span>✉</span>Requests
+        {% if unread_request_count %}<span class="nav-badge">{{ unread_request_count }}</span>{% endif %}
+    </a>
+    <a href="{{ url_for('profile_page') }}" class="active"><span>◎</span>Profile</a>
+    <a href="{{ url_for('help_page') }}"><span>?</span>Help</a>
+</nav>
+</body>
+</html>

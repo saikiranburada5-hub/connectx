@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Service Location - ConnectX</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+</head>
+<body>
+<div class="flow-shell">
+    <header class="flow-header"><span class="brand-mark">CX</span><span>ConnectX</span><span class="step-count">1 of 6</span></header>
+    <main class="flow-card">
+        <p class="eyebrow">START A REQUEST</p>
+        <h1>Where do you need the service?</h1>
+        <p class="intro">We use your location to show available professionals nearby.</p>
+        {% if error %}<div class="form-error">{{ error }}</div>{% endif %}
+        {% if saved_addresses %}
+        <div class="saved-address-picker">
+            <label for="savedAddress">Use a saved address</label>
+            <select id="savedAddress">
+                <option value="">Choose an address</option>
+                {% for saved in saved_addresses %}
+                <option value="{{ saved.id }}" data-address="{{ saved.label }}" data-house="{{ saved.house_number or '' }}" data-street="{{ saved.street }}" data-city="{{ saved.city }}" data-pincode="{{ saved.pincode }}" data-latitude="{{ saved.latitude or '' }}" data-longitude="{{ saved.longitude or '' }}">{{ saved.label }} · {{ saved.street }}, {{ saved.city }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
+        <button type="button" class="location-button" id="useLocation">📍 Use Current Location</button>
+        <p id="locationMessage" class="location-message">Your browser may ask for location permission.</p>
+        <div class="map-panel">
+            <div id="locationMap" aria-label="Choose your service location on the map"></div>
+            <p class="map-hint">Drag to pan up, down, left, or right. Use the wheel or +/- controls to zoom.</p>
+        </div>
+        <form method="POST" class="flow-form">
+            <input type="hidden" id="latitude" name="latitude" value="{{ location.get('latitude', '') }}">
+            <input type="hidden" id="longitude" name="longitude" value="{{ location.get('longitude', '') }}">
+            <label for="address">Address label</label>
+            <input id="address" name="address" value="{{ location.get('address', '') }}" placeholder="Home, work, shop" required>
+                <div><label for="house_number">House / Flat number <span class="optional-label">(optional)</span></label><input id="house_number" name="house_number" value="{{ location.get('house_number', '') }}"></div>
+                <div><label for="street">Street / Area</label><input id="street" name="street" value="{{ location.get('street', '') }}" required></div>
+                <div><label for="city">City</label><input id="city" name="city" value="{{ location.get('city', '') }}" required></div>
+                <div><label for="pincode">Pincode</label><input id="pincode" name="pincode" value="{{ location.get('pincode', '') }}" inputmode="numeric" pattern="[0-9]{5,6}" required></div>
+            <label class="save-address-option"><input type="checkbox" id="saveAddress" name="save_address"> Save this address to my profile</label>
+            <div class="save-address-name" id="saveAddressName" hidden>
+                <label for="save_address_name">Name this address</label>
+                <input id="save_address_name" name="save_address_name" placeholder="Home, Office, Work">
+                <small>Use any name so you can find it quickly next time.</small>
+            </div>
+            </div>
+            <button type="submit" class="primary-action">Continue to Services <span>-></span></button>
+        </form>
+    </main>
+</div>
+<nav class="bottom-nav" aria-label="Main navigation">
+    <a href="{{ url_for('services_page') }}"><span>⌂</span>Home</a>
+    <a href="{{ url_for('profile_page') }}"><span>◎</span>Profile</a>
+    <a href="{{ url_for('requests_page') }}" class="request-link">
+        <span>✉</span>Requests
+        {% if unread_request_count %}<span class="nav-badge">{{ unread_request_count }}</span>{% endif %}
+    </a>
+    <a href="{{ url_for('help_page') }}"><span>?</span>Help</a>
+</nav>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const locationButton = document.getElementById('useLocation');
+const locationMessage = document.getElementById('locationMessage');
+const addressField = document.getElementById('address');
+const latitudeField = document.getElementById('latitude');
+const longitudeField = document.getElementById('longitude');
+const savedAddress = document.getElementById('savedAddress');
+const saveAddress = document.getElementById('saveAddress');
+const saveAddressName = document.getElementById('saveAddressName');
+const saveAddressNameField = document.getElementById('save_address_name');
+const map = L.map('locationMap', {
+    dragging: true,
+    touchZoom: true,
+    scrollWheelZoom: true,
+    doubleClickZoom: true,
+    keyboard: true,
+    inertia: true,
+}).setView([20.5937, 78.9629], 5);
+let marker;
+
+if (saveAddress) {
+    saveAddress.addEventListener('change', () => {
+        saveAddressName.hidden = !saveAddress.checked;
+        saveAddressNameField.required = saveAddress.checked;
+        if (saveAddress.checked) saveAddressNameField.focus();
+    });
+}
+
+if (savedAddress) {
+    savedAddress.addEventListener('change', () => {
+        const option = savedAddress.options[savedAddress.selectedIndex];
+        if (!option.value) return;
+        addressField.value = option.dataset.address;
+        document.getElementById('house_number').value = option.dataset.house;
+        document.getElementById('street').value = option.dataset.street;
+        document.getElementById('city').value = option.dataset.city;
+        document.getElementById('pincode').value = option.dataset.pincode;
+        latitudeField.value = option.dataset.latitude;
+        longitudeField.value = option.dataset.longitude;
+        if (option.dataset.latitude && option.dataset.longitude) {
+            setMapLocation(Number(option.dataset.latitude), Number(option.dataset.longitude));
+        }
+    });
+}
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; OpenStreetMap contributors'
+}).addTo(map);
+
+function setMapLocation(latitude, longitude, zoom = 15) {
+    const point = [latitude, longitude];
+    if (!marker) {
+        marker = L.marker(point, { draggable: true }).addTo(map);
+        marker.on('dragend', event => {
+            const position = event.target.getLatLng();
+            updateLocation(position.lat, position.lng, false);
+        });
+    } else {
+        marker.setLatLng(point);
+    }
+    map.setView(point, zoom);
+}
+
+function updateLocation(latitude, longitude, moveMap = true) {
+    if (moveMap) setMapLocation(latitude, longitude);
+    latitudeField.value = latitude.toFixed(6);
+    longitudeField.value = longitude.toFixed(6);
+    addressField.value = `Map location (${latitude.toFixed(5)}, ${longitude.toFixed(5)})`;
+    locationMessage.textContent = 'Location selected on the map. Complete or edit the address details below.';
+    reverseGeocode(latitude, longitude);
+}
+
+map.on('click', event => updateLocation(event.latlng.lat, event.latlng.lng));
+
+async function reverseGeocode(latitude, longitude) {
+    try {
+        const response = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&lat=${latitude}&lon=${longitude}`
+        );
+        if (!response.ok) throw new Error('Reverse geocoding failed');
+        const data = await response.json();
+        const address = data.address || {};
+        const readableAddress = data.display_name || `Map location (${latitude.toFixed(5)}, ${longitude.toFixed(5)})`;
+        addressField.value = readableAddress;
+        document.getElementById('street').value = [address.road, address.neighbourhood || address.suburb]
+            .filter(Boolean).join(', ');
+        document.getElementById('city').value = address.city || address.town || address.village || '';
+        document.getElementById('pincode').value = address.postcode || '';
+        locationMessage.textContent = 'Current address detected. You can edit any field before continuing.';
+    } catch (error) {
+        locationMessage.textContent = 'Coordinates detected. Please enter or edit the address details manually.';
+    }
+}
+
+locationButton.addEventListener('click', () => {
+    if (!navigator.geolocation) {
+        locationMessage.textContent = 'Location is not supported here. Please enter your address manually.';
+        return;
+    }
+    locationButton.disabled = true;
+    locationButton.textContent = 'Locating...';
+    navigator.geolocation.getCurrentPosition(async position => {
+        const { latitude, longitude } = position.coords;
+        latitudeField.value = latitude.toFixed(6);
+        longitudeField.value = longitude.toFixed(6);
+        setMapLocation(latitude, longitude);
+        addressField.value = `Current location (${latitude.toFixed(5)}, ${longitude.toFixed(5)})`;
+        locationMessage.textContent = 'Location detected on the map. Looking up the address...';
+        reverseGeocode(latitude, longitude);
+        locationButton.disabled = false;
+        locationButton.textContent = '📍 Location Detected';
+    }, () => {
+        locationMessage.textContent = 'Location permission was denied. You can continue by entering your address manually.';
+        locationButton.disabled = false;
+        locationButton.textContent = '📍 Try Current Location Again';
+    }, { enableHighAccuracy: true, timeout: 10000 });
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Confirm Request - ConnectX</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+<div class="flow-shell">
+    <header class="flow-header"><a class="brand-mark" href="{{ url_for('workers_page') }}">CX</a><span>ConnectX</span><span class="step-count">5 of 6</span></header>
+    <main class="flow-card">
+        <p class="eyebrow">ALMOST THERE</p>
+        <h1>Booking Summary</h1>
+        <p class="intro">Review your request before sending it.</p>
+        <div class="summary-list">
+            <div><span>Customer</span><strong>{{ user.get('name') }}</strong></div>
+            <div><span>Location</span><strong>{{ location.get('house_number') }}, {{ location.get('street') }}, {{ location.get('city') }} - {{ location.get('pincode') }}</strong></div>
+            <div><span>Service</span><strong>{{ services|join(', ') }}</strong></div>
+            <div><span>Provider</span><strong>{{ provider.name }}</strong></div>
+            <div><span>Estimated price</span><strong>{{ price }}</strong></div>
+            <div><span>Requested time</span><strong>{{ problem.get('requested_time') }}</strong></div>
+            <div class="summary-description"><span>Problem</span><strong>{{ problem.get('description') }}</strong></div>
+            <div><span>Contact</span><strong>{{ user.get('phone') }} · {{ user.get('email') }}</strong></div>
+        </div>
+        <form action="{{ url_for('confirm_request') }}" method="POST"><input type="hidden" name="provider_id" value="{{ provider.id }}"><button class="primary-action" type="submit">Confirm Service Request <span>-></span></button></form>
+    </main>
+</div>
+<nav class="bottom-nav" aria-label="Main navigation">
+    <a href="{{ url_for('services_page') }}"><span>⌂</span>Home</a>
+    <a href="{{ url_for('profile_page') }}"><span>◎</span>Profile</a>
+    <a href="{{ url_for('requests_page') }}" class="request-link">
+        <span>✉</span>Requests
+        {% if unread_request_count %}<span class="nav-badge">{{ unread_request_count }}</span>{% endif %}
+    </a>
+    <a href="{{ url_for('help_page') }}"><span>?</span>Help</a>
+</nav>
+</body>
+</html>

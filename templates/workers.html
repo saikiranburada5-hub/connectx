@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nearby Providers - ConnectX</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+<div class="flow-shell">
+    <header class="flow-header"><a class="brand-mark" href="{{ url_for('problem_page') }}">CX</a><span>ConnectX</span><span class="step-count">4 of 6</span></header>
+    <main class="flow-card wide-card">
+        <p class="eyebrow">MATCHED FOR YOU</p>
+        <h1>Nearby available providers</h1>
+        <p class="intro">Based on {{ services|join(', ') }} and your saved location.</p>
+        <nav class="filter-bar" aria-label="Sort providers">
+            <a class="filter-chip {% if current_sort == 'nearest' %}active{% endif %}" href="{{ url_for('workers_page', sort='nearest') }}">Nearest</a>
+            <a class="filter-chip {% if current_sort == 'rating' %}active{% endif %}" href="{{ url_for('workers_page', sort='rating') }}">Highest Rated</a>
+            <a class="filter-chip {% if current_sort == 'price' %}active{% endif %}" href="{{ url_for('workers_page', sort='price') }}">Lowest Price</a>
+            <a class="filter-chip" href="{{ url_for('workers_page', sort='nearest') }}#available">Available Now</a>
+        </nav>
+        {% if providers %}
+            <div class="worker-list">
+            {% for provider in providers %}
+                <article class="worker-card" id="available">
+                    <div class="provider-photo">
+                        <img src="{{ provider.photo_url or 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=400&q=80' }}" alt="{{ provider.name }} photo">
+                    </div>
+                    <div class="worker-main">
+                        <div class="worker-heading"><h3>{{ provider.name }}</h3><span class="available-badge">● Available</span></div>
+                        <p class="worker-skill">{{ provider.skill }}</p>
+                        <div class="worker-meta"><span>★ {{ provider.rating }}</span><span>{{ provider.age }} yrs</span><span>⌖ {{ provider.location }} ({{ provider.distance }})</span></div>
+                        <p class="provider-bio">{{ provider.bio }}</p>
+                        <strong class="worker-price">{{ provider.price }} estimated</strong>
+                    </div>
+                    <form action="{{ url_for('booking_confirmation') }}" method="POST"><input type="hidden" name="provider_id" value="{{ provider.id }}"><button class="primary-action" type="submit">Send Request</button></form>
+                </article>
+            {% endfor %}
+            </div>
+        {% else %}
+            <div class="empty-state"><span>⌂</span><h2>No providers available yet</h2><p>Try another service or check back shortly. Your request details are saved.</p></div>
+        {% endif %}
+    </main>
+</div>
+<nav class="bottom-nav" aria-label="Main navigation">
+    <a href="{{ url_for('services_page') }}"><span>⌂</span>Home</a>
+    <a href="{{ url_for('profile_page') }}"><span>◎</span>Profile</a>
+    <a href="{{ url_for('requests_page') }}" class="request-link">
+        <span>✉</span>Requests
+        {% if unread_request_count %}<span class="nav-badge">{{ unread_request_count }}</span>{% endif %}
+    </a>
+    <a href="{{ url_for('help_page') }}"><span>?</span>Help</a>
+</nav>
+</body>
+</html>

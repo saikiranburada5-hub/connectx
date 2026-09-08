@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Request Status - ConnectX</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+</head>
+<body>
+{% include '_support_widget.html' %}
+<div class="flow-shell">
+    <header class="flow-header"><a class="brand-mark" href="{{ url_for('location_page') }}">CX</a><span>ConnectX</span><span class="step-count">6 of 6</span></header>
+    <main class="flow-card">
+        <div class="success-mark">✓</div>
+        <p class="eyebrow" id="eyebrowText">{{ service_request.status|upper }}</p>
+        <h1 id="statusHeadline">
+            {% if service_request.status == 'Request Sent' %}
+                Your service request has been sent!
+            {% elif service_request.status == 'Worker Reviewing' %}
+                {{ service_request.provider_name }} is reviewing your request...
+            {% elif service_request.status == 'Worker Accepted' %}
+                {{ service_request.provider_name }} accepted your booking!
+            {% elif service_request.status == 'Worker On the Way' %}
+                {{ service_request.provider_name }} is on the way!
+            {% elif service_request.status == 'Service Started' %}
+                Service in progress with {{ service_request.provider_name }}
+            {% elif service_request.status == 'Service Completed' %}
+                Service Completed!
+            {% else %}
+                {{ service_request.status }}
+            {% endif %}
+        </h1>
+        <p class="intro" id="statusIntro">
+            {% if service_request.status == 'Request Sent' %}
+                {{ service_request.provider_name }} will review your booking and respond shortly.
+            {% elif service_request.status == 'Worker Reviewing' %}
+                Provider is checking the problem details and preparing response.
+            {% elif service_request.status == 'Worker Accepted' %}
+                Booking confirmed! Worker is packing tools to head to your location.
+            {% elif service_request.status == 'Worker On the Way' %}
+                Follow live tracking below. Estimated arrival: {{ service_tracking.eta_minutes }} mins.
+            {% else %}
+                {{ service_request.provider_name }} is handling your service.
+            {% endif %}
+        </p>
+
+        <div id="statusLiveBanner" class="status-live-banner">
+            <span id="statusLivePulse">✨</span>
+            <span id="statusLiveMessage">
+                {% if service_request.status == 'Request Sent' %}
+                    Request sent! Matching with {{ service_request.provider_name }}...
+                {% elif service_request.status == 'Worker Reviewing' %}
+                    {{ service_request.provider_name }} is reviewing your request details...
+                {% elif service_request.status == 'Worker Accepted' %}
+                    🎉 {{ service_request.provider_name }} accepted your booking!
+                {% elif service_request.status == 'Worker On the Way' %}
+                    🚚 {{ service_request.provider_name }} is heading to your address!
+                {% elif service_request.status == 'Service Completed' %}
+                    ✅ Service completed successfully.
+                {% else %}
+                    Status: {{ service_request.status }}
+                {% endif %}
+            </span>
+        </div>
+
+        {% if show_tracking %}
+        <div class="tracking-card" id="trackingSection">
+            <div class="tracking-header">
+                <div>
+                    <p class="eyebrow">LIVE WORKER LOCATION</p>
+                    <h2 id="trackingMessage">{{ service_tracking.message }}</h2>
+                </div>
+                <div class="eta-badge" id="etaBadge">{{ service_tracking.eta_minutes }} min</div>
+            </div>
+            <div class="map-panel tracking-map">
+                <div id="statusMap" aria-label="Worker live location map"></div>
+            </div>
+            <div class="route-directions" aria-live="polite">
+                <div class="route-summary"><strong id="routeSummary">Loading road directions...</strong><span id="routeDistance"></span></div>
+                <ol id="routeDirections"><li>Finding the best road route to your service provider.</li></ol>
+            </div>
+            <div class="tracking-stats">
+                <div><span>Distance</span><strong id="statDistance">{{ service_tracking.distance_km }} km</strong></div>
+                <div><span>ETA</span><strong id="statEta">{{ service_tracking.eta_minutes }} mins</strong></div>
+                <div><span>Status</span><strong id="statStatus">{% if service_tracking.arrived %}At your location{% else %}Heading your way{% endif %}</strong></div>
+            </div>
+            {% if service_tracking.arrived %}
+                <div class="arrival-banner" id="arrivalBanner">📍 Your service provider is on your location. Please go to the booking location to meet them.</div>
+            {% else %}
+                <div class="arrival-banner muted" id="arrivalBanner">📍 The worker is moving toward your service address. Keep your phone reachable.</div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <div class="status-track" id="statusTrack">
+            {% for label, desc in status_steps %}
+            <div class="status-step {% if loop.index == current_step_index %}current{% elif loop.index < current_step_index %}completed{% endif %}" data-step="{{ loop.index }}">
+                <span>{% if loop.index < current_step_index %}✓{% else %}{{ loop.index }}{% endif %}</span>
+                <strong>{{ label }}</strong>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="status-summary">
+            <div><span>Service</span><strong>{{ service_request.service }}</strong></div>
+            <div><span>Provider</span><strong>{{ service_request.provider_name }}</strong></div>
+            <div><span>Estimated price</span><strong>{{ service_request.estimated_price }}</strong></div>
+            <div><span>Payment</span><strong>{{ service_request.payment_status or 'Payment Pending' }}</strong></div>
+            <div><span>Request ID</span><strong>#{{ service_request.id }}</strong></div>
+        </div>
+
+        {% if service_request.status == 'Service Completed' %}
+        <section class="completion-card">
+            <p class="eyebrow">SERVICE COMPLETED</p>
+            <h2>How was your experience?</h2>
+            {% if service_request.payment_status != 'Paid' %}
+            <form method="POST" action="{{ url_for('pay_request', request_id=service_request.id) }}">
+                <button class="primary-action" type="submit">Pay {{ service_request.estimated_price }} <span>-></span></button>
+            </form>
+            {% else %}
+            <div class="paid-banner">Payment completed successfully.</div>
+            {% endif %}
+            {% if service_request.worker_rating %}
+                <div class="paid-banner">You rated {{ service_request.provider_name }} {{ service_request.worker_rating }}/5.</div>
+            {% else %}
+            <form method="POST" action="{{ url_for('rate_worker', request_id=service_request.id) }}" class="rating-form">
+                <label for="rating">Rate your worker</label>
+                <select id="rating" name="rating" required>
+                    <option value="">Choose a rating</option>
+                    <option value="5">5 - Excellent</option>
+                    <option value="4">4 - Good</option>
+                    <option value="3">3 - Average</option>
+                    <option value="2">2 - Poor</option>
+                    <option value="1">1 - Very poor</option>
+                </select>
+                <textarea name="worker_feedback" rows="3" placeholder="Tell us about the worker's service"></textarea>
+                <button class="secondary-action" type="submit">Submit worker rating</button>
+            </form>
+            {% endif %}
+        </section>
+        {% endif %}
+
+        <div class="status-actions">
+            {% if service_request.status not in ('Service Completed', 'Cancelled') %}
+            <form action="{{ url_for('api_simulate_accept', request_id=service_request.id) }}" method="POST" class="inline-form">
+                <button class="secondary-action" type="submit" style="background:#f0fdf4; border-color:#86efac; color:#166534;">⚡ Advance Status</button>
+            </form>
+            {% endif %}
+            <a class="secondary-action" href="tel:{{ service_request.provider_phone or '9876543210' }}">☎ Contact worker</a>
+            <a class="secondary-action" href="{{ url_for('view_bookings') }}">View booking details</a>
+            {% if service_request.status not in ('Service Completed', 'Cancelled') %}
+            <form class="inline-form" action="{{ url_for('cancel_request', request_id=service_request.id) }}" method="POST">
+                <button class="cancel-action" type="submit">Cancel request</button>
+            </form>
+            {% endif %}
+        </div>
+    </main>
+</div>
+<nav class="bottom-nav" aria-label="Main navigation">
+    <a href="{{ url_for('services_page') }}"><span>⌂</span>Home</a>
+    <a href="{{ url_for('profile_page') }}"><span>◎</span>Profile</a>
+    <a href="{{ url_for('requests_page') }}" class="request-link">
+        <span>✉</span>Requests
+        {% if unread_request_count %}<span class="nav-badge">{{ unread_request_count }}</span>{% endif %}
+    </a>
+    <a href="{{ url_for('help_page') }}"><span>?</span>Help</a>
+</nav>
+
+{% if show_tracking %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const customerLat = {{ service_tracking.customer_latitude }};
+const customerLng = {{ service_tracking.customer_longitude }};
+let providerLat = {{ service_tracking.provider_latitude }};
+let providerLng = {{ service_tracking.provider_longitude }};
+
+const map = L.map('statusMap', {
+    dragging: true,
+    touchZoom: true,
+    scrollWheelZoom: true,
+    doubleClickZoom: true,
+    keyboard: true,
+    inertia: true,
+}).setView([customerLat, customerLng], 14);
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; OpenStreetMap contributors'
+}).addTo(map);
+
+const customerIcon = L.divIcon({
+    html: '<div class="map-pin customer-pin">⌂</div>',
+    className: 'custom-pin-wrapper',
+    iconSize: [26, 26],
+    iconAnchor: [13, 13]
+});
+
+const workerIcon = L.divIcon({
+    html: '<div class="map-pin worker-pin">🚚</div>',
+    className: 'custom-pin-wrapper',
+    iconSize: [30, 30],
+    iconAnchor: [15, 15]
+});
+
+L.marker([customerLat, customerLng], { icon: customerIcon }).addTo(map);
+let workerMarker = L.marker([providerLat, providerLng], { icon: workerIcon }).addTo(map);
+
+function drawRoute(routeCoordinates, summary, distance) {
+    L.polyline(routeCoordinates, {
+        color: '#ffffff',
+        weight: 9,
+        opacity: 0.95,
+        lineCap: 'round',
+        lineJoin: 'round'
+    }).addTo(map);
+
+    L.polyline(routeCoordinates, {
+        color: '#146ee8',
+        weight: 5,
+        opacity: 1,
+        lineCap: 'round',
+        lineJoin: 'round'
+    }).addTo(map);
+
+    const sumEl = document.getElementById('routeSummary');
+    const distEl = document.getElementById('routeDistance');
+    if (sumEl) sumEl.textContent = summary;
+    if (distEl) distEl.textContent = `${distance.toFixed(1)} km by road`;
+    map.fitBounds(routeCoordinates, { padding: [30, 30] });
+}
+
+function drawFallbackRoute() {
+    drawRoute([[customerLat, customerLng], [providerLat, providerLng]], 'Direct route to your booking location', {{ service_tracking.distance_km }});
+}
+
+async function loadRoadRoute() {
+    const routeUrl = `https://router.project-osrm.org/route/v1/driving/${providerLng},${providerLat};${customerLng},${customerLat}?overview=full&geometries=geojson&steps=true`;
+    try {
+        const response = await fetch(routeUrl);
+        if (!response.ok) throw new Error('Route service unavailable');
+        const data = await response.json();
+        const route = data.routes && data.routes[0];
+        if (!route) throw new Error('No route found');
+
+        const routeCoordinates = route.geometry.coordinates.map(([longitude, latitude]) => [latitude, longitude]);
+        drawRoute(routeCoordinates, `Road route • ${Math.round(route.duration / 60)} min`, route.distance / 1000);
+
+        const directions = document.getElementById('routeDirections');
+        if (directions) {
+            directions.innerHTML = '';
+            route.legs[0].steps.forEach(step => {
+                const instruction = step.maneuver.instruction || `${step.maneuver.type} on ${step.name || 'the road'}`;
+                const item = document.createElement('li');
+                item.textContent = instruction;
+                directions.appendChild(item);
+            });
+        }
+    } catch (error) {
+        drawFallbackRoute();
+        const directions = document.getElementById('routeDirections');
+        if (directions) directions.innerHTML = '<li>Road directions are active. Follow the blue route shown on the map.</li>';
+    }
+}
+
+loadRoadRoute();
+</script>
+{% endif %}
+
+<script>
+// ==========================================
+// REAL-TIME AUTO-POLLING FOR WORKER ACCEPTANCE & MOVEMENT
+// ==========================================
+(function() {
+    const requestId = {{ service_request.id }};
+    let currentStatus = "{{ service_request.status }}";
+    let isCompleted = {{ 'true' if service_request.status in ('Service Completed', 'Cancelled') else 'false' }};
+
+    function pollStatus() {
+        if (isCompleted) return;
+        fetch(`/api/request-status/${requestId}`)
+            .then(res => res.json())
+            .then(data => {
+                if (!data || !data.status) return;
+
+                const newStatus = data.status;
+                const stepIndex = data.current_step_index;
+
+                // Update stepper elements
+                document.querySelectorAll('.status-step').forEach((el, idx) => {
+                    const stepNum = idx + 1;
+                    el.classList.remove('current', 'completed');
+                    const span = el.querySelector('span');
+                    if (stepNum < stepIndex) {
+                        el.classList.add('completed');
+                        if (span) span.textContent = '✓';
+                    } else if (stepNum === stepIndex) {
+                        el.classList.add('current');
+                        if (span) span.textContent = stepNum;
+                    } else {
+                        if (span) span.textContent = stepNum;
+                    }
+                });
+
+                // Update live banner
+                const bannerMsg = document.getElementById('statusLiveMessage');
+                const banner = document.getElementById('statusLiveBanner');
+                if (bannerMsg) {
+                    if (newStatus === 'Request Sent') {
+                        bannerMsg.textContent = `Request sent! Matching with ${data.provider_name}...`;
+                        if (banner) { banner.style.background = '#eff6ff'; banner.style.borderColor = '#bfdbfe'; banner.style.color = '#1e40af'; }
+                    } else if (newStatus === 'Worker Reviewing') {
+                        bannerMsg.textContent = `${data.provider_name} is reviewing your booking request...`;
+                        if (banner) { banner.style.background = '#fffbeb'; banner.style.borderColor = '#fde68a'; banner.style.color = '#92400e'; }
+                    } else if (newStatus === 'Worker Accepted') {
+                        bannerMsg.textContent = `🎉 ${data.provider_name} accepted your request!`;
+                        if (banner) { banner.style.background = '#f0fdf4'; banner.style.borderColor = '#bbf7d0'; banner.style.color = '#166534'; }
+                    } else if (newStatus === 'Worker On the Way') {
+                        bannerMsg.textContent = `🚚 ${data.provider_name} is heading to your address! (${data.tracking ? data.tracking.distance_km : ''} km away)`;
+                        if (banner) { banner.style.background = '#f0fdf4'; banner.style.borderColor = '#bbf7d0'; banner.style.color = '#166534'; }
+                    } else if (newStatus === 'Service Completed') {
+                        bannerMsg.textContent = `✅ Service completed!`;
+                        isCompleted = true;
+                        setTimeout(() => location.reload(), 1200);
+                    }
+                }
+
+                // If status transitioned to show_tracking and map is not on page, reload to initialize map
+                if (data.show_tracking && !document.getElementById('statusMap')) {
+                    location.reload();
+                }
+
+                currentStatus = newStatus;
+            })
+            .catch(err => console.debug('Status poll error:', err));
+    }
+
+    if (!isCompleted) {
+        setInterval(pollStatus, 3000);
+    }
+})();
+</script>
+</body>
+</html>

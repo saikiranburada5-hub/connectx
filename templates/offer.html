@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+    <title>Provider Registration - ConnectX</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='styles.css') }}">
+
+</head>
+
+<body>
+
+<div class="login-box">
+
+    {% if edit_mode %}
+
+        <h1>✏️ Edit Provider Profile</h1>
+
+        <p>Update your service information.</p>
+
+    {% else %}
+
+        <h1>👷 Provider Registration</h1>
+
+        <p>
+            Select the services you can provide.
+        </p>
+
+    {% endif %}
+
+
+    <form method="POST">
+
+        <!-- NAME -->
+
+        <label>👤 Name</label>
+
+        <input
+            type="text"
+            value="{{ session['name'] }}"
+            readonly
+        >
+
+
+        <!-- SKILLS -->
+
+        <label>🛠️ Select Your Skills</label>
+
+        <div class="skills-box">
+
+            {% set saved_skills = provider.skill.split(', ') if provider else [] %}
+
+            {% for skill in [
+                "Electrical",
+                "Plumbing",
+                "Cleaning",
+                "Gardening",
+                "Carpentry",
+                "Painting",
+                "Computer/Laptop Repair",
+                "Appliance Repair",
+                "AC Repair",
+                "Cooking",
+                "Driving",
+                "Tutoring"
+            ] %}
+
+                <label class="skill-option">
+
+                    <input
+                        type="checkbox"
+                        name="skills"
+                        value="{{ skill }}"
+                        {% if skill in saved_skills %}
+                            checked
+                        {% endif %}
+                    >
+
+                    {{ skill }}
+
+                </label>
+
+            {% endfor %}
+
+            <!-- OTHER -->
+
+            <label class="skill-option">
+
+                <input
+                    type="checkbox"
+                    id="otherCheck"
+                    onchange="showOther()"
+                >
+
+                Other
+
+            </label>
+
+        </div>
+
+
+        <!-- OTHER SKILL -->
+
+        <div id="otherBox" style="display:none;">
+
+            <label>✏️ Enter Other Skill</label>
+
+            <input
+                type="text"
+                name="other_skill"
+                id="otherSkill"
+                placeholder="Example: Security"
+            >
+
+        </div>
+
+
+        <!-- EXPERIENCE -->
+
+        <label>📅 Experience (Years)</label>
+
+        <input
+            type="number"
+            name="experience"
+            min="0"
+            placeholder="Enter experience"
+            value="{{ provider.experience if provider else '' }}"
+            required
+        >
+
+
+        <!-- LOCATION -->
+
+        <label>📍 Location</label>
+
+        <input
+            type="text"
+            name="location"
+            placeholder="Enter your location"
+            value="{{ provider.location if provider else '' }}"
+            required
+        >
+
+
+        <!-- AVAILABILITY -->
+
+        <label>⏰ Availability</label>
+
+        <select name="availability" required>
+
+            <option value="">
+                Select availability
+            </option>
+
+            <option value="Available"
+                {% if provider and provider.availability == "Available" %}
+                    selected
+                {% endif %}>
+                Available
+            </option>
+
+            <option value="Unavailable"
+                {% if provider and provider.availability == "Unavailable" %}
+                    selected
+                {% endif %}>
+                Unavailable
+            </option>
+
+        </select>
+
+        <br><br>
+
+
+        {% if edit_mode %}
+
+            <button type="submit">
+                💾 Update Profile
+            </button>
+
+        {% else %}
+
+            <button type="submit">
+                🚀 Register as Provider
+            </button>
+
+        {% endif %}
+
+    </form>
+
+
+    <br>
+
+    <a href="{{ url_for('provider_dashboard') }}">
+        ⬅ Back to Dashboard
+    </a>
+
+</div>
+
+
+<script>
+
+function showOther() {
+
+    const checkbox = document.getElementById("otherCheck");
+
+    const box = document.getElementById("otherBox");
+
+    const input = document.getElementById("otherSkill");
+
+    if (checkbox.checked) {
+
+        box.style.display = "block";
+
+        input.required = true;
+
+    } else {
+
+        box.style.display = "none";
+
+        input.required = false;
+
+        input.value = "";
+
+    }
+
+}
+
+</script>
+
+</body>
+
+</html>
