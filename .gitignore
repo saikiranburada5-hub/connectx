@@ -13,3 +13,9 @@ env/
 .vscode/
 .DS_Store
 Thumbs.db
+
+# Netlify & Vercel
+.netlify/
+.vercel/
+
+

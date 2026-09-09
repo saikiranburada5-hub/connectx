@@ -14,7 +14,8 @@
             <button class="yoyo-close" type="button" aria-label="Close chat" data-yoyo-close>&times;</button>
         </header>
         <div class="yoyo-messages" id="yoyo-messages" aria-live="polite">
-            <div class="yoyo-message yoyo-bot">Hi, I’m Yoyo. You can type or tap 🎙️ to ask anything about services, bookings, tracking, and more!</div>
+            <div class="yoyo-message yoyo-bot">Hi, I’m Yoyo. You can type or tap 🎙️ to ask anything about services,
+                bookings, tracking, and more!</div>
         </div>
         <div class="yoyo-suggestions" aria-label="Suggested questions">
             <button type="button" data-yoyo-question="How do I book a service?">Book a service</button>
@@ -27,24 +28,25 @@
         <form class="yoyo-form" id="yoyo-form">
             <label class="sr-only" for="yoyo-input">Ask Yoyo a question</label>
             <input id="yoyo-input" type="text" autocomplete="off" placeholder="Ask a question or tap 🎙️…" required>
-            <button type="button" class="yoyo-mic" id="yoyo-mic" aria-label="Speak your question" title="Speak to Yoyo">🎙️</button>
+            <button type="button" class="yoyo-mic" id="yoyo-mic" aria-label="Speak your question"
+                title="Speak to Yoyo">🎙️</button>
             <button type="submit">Send</button>
         </form>
     </section>
-    <button class="yoyo-launcher" type="button" aria-expanded="false" aria-controls="yoyo-panel" data-yoyo-open>
+    <button class="yoyo-launcher" type="button" aria-expanded="false" aria-controls="yoyo-panel"
+        aria-label="Ask Yoyo support assistant" title="Ask Yoyo" data-yoyo-open>
         <span class="yoyo-bolt-logo" aria-hidden="true">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="url(#boltGrad)" stroke="#ffffff" stroke-width="0.8">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="url(#boltGrad)" stroke="#ffffff" stroke-width="0.8">
                 <defs>
                     <linearGradient id="boltGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" stop-color="#fef08a"/>
-                        <stop offset="60%" stop-color="#facc15"/>
-                        <stop offset="100%" stop-color="#ea580c"/>
+                        <stop offset="0%" stop-color="#fef08a" />
+                        <stop offset="60%" stop-color="#facc15" />
+                        <stop offset="100%" stop-color="#ea580c" />
                     </linearGradient>
                 </defs>
                 <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
             </svg>
         </span>
-        <span class="yoyo-launcher-text">Ask Yoyo</span>
     </button>
 </aside>
 

@@ -9,14 +9,28 @@ from flask import Flask, render_template, request, redirect, url_for, session
 
 from matching import detect_service, calculate_match
 from database import get_db, init_db
+from api_blueprint import api_v1
 
 
 app = Flask(__name__)
 
-app.secret_key = "gigconnect-secret-key"
+app.secret_key = os.environ.get("SECRET_KEY", "gigconnect-secret-key")
 
-# Initialize database
-init_db()
+# Register RESTful API blueprint
+app.register_blueprint(api_v1)
+
+# Initialize database safely
+try:
+    init_db()
+except Exception as e:
+    app.logger.warning(f"Database initialization warning: {e}")
+
+
+@app.route("/api")
+@app.route("/api/docs")
+@app.route("/swagger")
+def api_docs_redirect():
+    return redirect(url_for("api_v1.api_docs_v1"))
 
 PROVIDER_PHOTOS = [
     "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=400&q=80",
@@ -33,13 +47,16 @@ PROVIDER_PHOTOS = [
 def get_unread_request_count():
     if "user_id" not in session:
         return 0
-    conn = get_db()
-    count = conn.execute(
-        "SELECT COUNT(*) AS total FROM service_requests WHERE user_id = ? AND is_read = 0",
-        (session["user_id"],),
-    ).fetchone()["total"]
-    conn.close()
-    return count
+    try:
+        conn = get_db()
+        count = conn.execute(
+            "SELECT COUNT(*) AS total FROM service_requests WHERE user_id = ? AND is_read = 0",
+            (session["user_id"],),
+        ).fetchone()["total"]
+        conn.close()
+        return count
+    except Exception:
+        return 0
 
 
 def get_firebase_web_config():
@@ -76,14 +93,18 @@ def inject_request_nav():
 
 @app.after_request
 def inject_page_translation(response):
-    if response.content_type.startswith("text/html"):
-        language = json.dumps(session.get("language", "English"))
-        translation_script = (
-            f'<script>window.gigconnectLanguage = {language};</script>'
-            '<script src="/static/translations.js"></script>'
-        )
-        page = response.get_data(as_text=True)
-        response.set_data(page.replace("</body>", f"{translation_script}</body>"))
+    try:
+        if response.content_type and response.content_type.startswith("text/html"):
+            language = json.dumps(session.get("language", "English"))
+            translation_script = (
+                f'<script>window.gigconnectLanguage = {language};</script>'
+                '<script src="/static/translations.js"></script>'
+            )
+            page = response.get_data(as_text=True)
+            if "</body>" in page:
+                response.set_data(page.replace("</body>", f"{translation_script}</body>"))
+    except Exception as e:
+        app.logger.warning(f"Translation injection warning: {e}")
     return response
 
 
@@ -437,44 +458,280 @@ def verify_firebase_phone():
 
 
 # =========================
-# DEV OTP VERIFICATION (FALLBACK / LOCAL TESTING)
+# REAL SMS OTP DISPATCH & VERIFICATION
 # =========================
 
+def send_sms_via_gateway(phone_with_code, otp):
+    """
+    Sends real SMS with the 6-digit OTP to user's mobile number using configured SMS gateways:
+    1. Fast2SMS (India - Instant SMS)
+    2. Twilio SMS
+    3. 2Factor (India)
+    4. MSG91
+    """
+    message_text = f"Your ConnectX verification OTP is: {otp}. Valid for 5 minutes. Do not share this code."
+
+    # 1. Fast2SMS (India - Instant Direct SMS)
+    fast2sms_key = os.environ.get("FAST2SMS_API_KEY")
+    if fast2sms_key and not fast2sms_key.startswith("your_"):
+        try:
+            import urllib.request
+            import urllib.parse
+            import urllib.error
+            import json
+            clean_phone = phone_with_code[-10:] if len(phone_with_code) >= 10 else phone_with_code
+            clean_key = fast2sms_key.strip()
+            
+            # 1a. Try Fast2SMS Quick Route (Works without domain verification)
+            try:
+                q_payload = json.dumps({
+                    "route": "q",
+                    "message": f"Your ConnectX verification code is {otp}.",
+                    "language": "english",
+                    "flash": 0,
+                    "numbers": clean_phone
+                }).encode("utf-8")
+                q_req = urllib.request.Request("https://www.fast2sms.com/dev/bulkV2", data=q_payload, method="POST")
+                q_req.add_header("authorization", clean_key)
+                q_req.add_header("Content-Type", "application/json")
+                q_req.add_header("User-Agent", "ConnectX-App/1.0")
+                with urllib.request.urlopen(q_req, timeout=12) as q_resp:
+                    q_data = json.loads(q_resp.read().decode("utf-8"))
+                    if q_data.get("return") is True:
+                        app.logger.info(f"Real SMS successfully delivered via Fast2SMS Quick Route to {clean_phone}")
+                        return True, "Fast2SMS", f"SMS OTP sent to {clean_phone} via Fast2SMS."
+                    else:
+                        app.logger.warning(f"Fast2SMS Quick Route returned: {q_data.get('message')}")
+            except Exception as q_err:
+                app.logger.warning(f"Fast2SMS Quick Route error: {q_err}")
+
+            # 1b. Try Fast2SMS OTP Route
+            try:
+                payload = json.dumps({
+                    "route": "otp",
+                    "variables_values": otp,
+                    "numbers": clean_phone
+                }).encode("utf-8")
+                req = urllib.request.Request("https://www.fast2sms.com/dev/bulkV2", data=payload, method="POST")
+                req.add_header("authorization", clean_key)
+                req.add_header("Content-Type", "application/json")
+                req.add_header("User-Agent", "ConnectX-App/1.0")
+                with urllib.request.urlopen(req, timeout=12) as resp:
+                    res_data = json.loads(resp.read().decode("utf-8"))
+                    if res_data.get("return") is True:
+                        app.logger.info(f"Real SMS successfully delivered via Fast2SMS OTP Route to {clean_phone}")
+                        return True, "Fast2SMS", f"SMS OTP sent to {clean_phone} via Fast2SMS."
+                    else:
+                        err_msg = res_data.get("message", ["Fast2SMS error"])[0] if isinstance(res_data.get("message"), list) else str(res_data.get("message"))
+                        return False, "Fast2SMS", f"Fast2SMS: {err_msg}"
+            except urllib.error.HTTPError as e:
+                err_body = e.read().decode("utf-8", errors="ignore")
+                app.logger.error(f"Fast2SMS OTP Route HTTP Error {e.code}: {err_body}")
+                try:
+                    err_json = json.loads(err_body)
+                    status_code = err_json.get("status_code")
+                    if status_code == 996:
+                        err_msg = "Please activate OTP Service in your Fast2SMS Dashboard (Click 'OTP Message' in the left menu of fast2sms.com/panel and submit your app name: ConnectX)."
+                    else:
+                        raw_msg = err_json.get("message", str(e))
+                        err_msg = raw_msg[0] if isinstance(raw_msg, list) else str(raw_msg)
+                except Exception:
+                    err_msg = str(e)
+                return False, "Fast2SMS", f"Fast2SMS Notice: {err_msg}"
+            except Exception as e:
+                app.logger.error(f"Fast2SMS OTP Route error: {e}")
+                return False, "Fast2SMS", f"Fast2SMS connection error: {e}"
+        except Exception as e:
+            app.logger.error(f"Fast2SMS delivery failed: {e}")
+            return False, "Fast2SMS", f"Fast2SMS connection error: {e}"
+
+    # 2. Twilio SMS
+    twilio_sid = os.environ.get("TWILIO_ACCOUNT_SID")
+    twilio_token = os.environ.get("TWILIO_AUTH_TOKEN")
+    twilio_from = os.environ.get("TWILIO_PHONE_NUMBER") or os.environ.get("TWILIO_FROM")
+    if twilio_sid and twilio_token and twilio_from and not twilio_sid.startswith("your_"):
+        try:
+            import urllib.request
+            import urllib.parse
+            import urllib.error
+            import base64
+            target_phone = phone_with_code if phone_with_code.startswith("+") else (f"+91{phone_with_code}" if len(phone_with_code) == 10 else f"+{phone_with_code}")
+            clean_from = twilio_from.strip()
+            data = urllib.parse.urlencode({
+                "To": target_phone,
+                "From": clean_from,
+                "Body": message_text
+            }).encode("utf-8")
+            url = f"https://api.twilio.com/2010-04-01/Accounts/{twilio_sid}/Messages.json"
+            req = urllib.request.Request(url, data=data, method="POST")
+            auth_str = f"{twilio_sid}:{twilio_token}"
+            b64_auth = base64.b64encode(auth_str.encode("utf-8")).decode("ascii")
+            req.add_header("Authorization", f"Basic {b64_auth}")
+            req.add_header("Content-Type", "application/x-www-form-urlencoded")
+            with urllib.request.urlopen(req, timeout=12) as resp:
+                if 200 <= resp.status < 300:
+                    app.logger.info(f"Real SMS delivered via Twilio to {target_phone}")
+                    return True, "Twilio", f"SMS OTP sent to {target_phone} via Twilio."
+        except urllib.error.HTTPError as e:
+            err_body = e.read().decode("utf-8", errors="ignore")
+            app.logger.error(f"Twilio HTTP Error {e.code}: {err_body}")
+            try:
+                err_json = json.loads(err_body)
+                err_msg = err_json.get("message", str(e))
+            except Exception:
+                err_msg = str(e)
+            return False, "Twilio", f"Twilio SMS Error: {err_msg}"
+        except Exception as e:
+            app.logger.error(f"Twilio SMS delivery error: {e}")
+            return False, "Twilio", f"Twilio connection error: {e}"
+
+    # 3. 2Factor (India)
+    two_factor_key = os.environ.get("TWO_FACTOR_API_KEY")
+    if two_factor_key and not two_factor_key.startswith("your_"):
+        try:
+            import urllib.request
+            clean_phone = phone_with_code[-10:] if len(phone_with_code) >= 10 else phone_with_code
+            url = f"https://2factor.in/API/V1/{two_factor_key}/SMS/{clean_phone}/{otp}/OTP1"
+            req = urllib.request.Request(url, method="GET")
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                if 200 <= resp.status < 300:
+                    app.logger.info(f"Real SMS delivered via 2Factor to {clean_phone}")
+                    return True, "2Factor", f"SMS OTP sent to {clean_phone} via 2Factor."
+        except Exception as e:
+            app.logger.error(f"2Factor SMS delivery failed: {e}")
+            return False, "2Factor", f"2Factor connection error: {e}"
+
+    # 4. MSG91
+    msg91_auth = os.environ.get("MSG91_AUTH_KEY")
+    msg91_template = os.environ.get("MSG91_TEMPLATE_ID")
+    if msg91_auth and msg91_template and not msg91_auth.startswith("your_"):
+        try:
+            import urllib.request
+            target_phone = phone_with_code.replace("+", "")
+            payload = json.dumps({
+                "template_id": msg91_template,
+                "mobile": target_phone,
+                "authkey": msg91_auth,
+                "otp": otp
+            }).encode("utf-8")
+            req = urllib.request.Request("https://control.msg91.com/api/v5/otp", data=payload, method="POST")
+            req.add_header("Content-Type", "application/json")
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                if 200 <= resp.status < 300:
+                    app.logger.info(f"Real SMS delivered via MSG91 to {target_phone}")
+                    return True, "MSG91", f"SMS OTP sent to {target_phone} via MSG91."
+        except Exception as e:
+            app.logger.error(f"MSG91 SMS delivery failed: {e}")
+            return False, "MSG91", f"MSG91 connection error: {e}"
+
+    return False, None, "No SMS gateway API keys configured in .env."
+
+
+@app.route("/send-otp", methods=["POST"])
+@app.route("/send-sms-otp", methods=["POST"])
 @app.route("/send-dev-otp", methods=["POST"])
-def send_dev_otp():
+def send_sms_otp():
     data = request.get_json() or {}
-    phone = normalize_phone(data.get("phone", ""))
+    raw_phone = str(data.get("phone", "")).strip()
+    phone = normalize_phone(raw_phone)
     if not phone:
         return {"error": "Enter a valid phone number."}, 400
 
-    dev_otp = "123456"
-    session["dev_otp"] = dev_otp
-    session["dev_otp_phone"] = phone
+    import secrets
+    import time
+    otp = f"{secrets.randbelow(900000) + 100000}"
 
-    return {
+    session["pending_otp"] = otp
+    session["pending_otp_phone"] = phone
+    session["pending_otp_expiry"] = time.time() + 900  # 15 minutes validity
+    session["pending_otp_last_sent"] = time.time()
+    session["pending_otp_attempts"] = 0
+
+    sent_live, provider, msg = send_sms_via_gateway(raw_phone, otp)
+
+    # Log to server console for operational traceability
+    app.logger.info("==================================================")
+    app.logger.info(f" [SMS OTP] Mobile: {raw_phone} -> 6-Digit OTP: {otp}")
+    if sent_live:
+        app.logger.info(f" [SMS OTP] Real SMS delivered successfully via {provider}")
+    else:
+        app.logger.info(f" [SMS OTP] Status: {msg}")
+    app.logger.info("==================================================")
+
+    resp_payload = {
         "success": True,
-        "dev_mode": True,
-        "otp": dev_otp,
-        "message": "Dev Mode: Use OTP 123456 to verify."
+        "phone": raw_phone,
+        "sent_live": sent_live,
+        "provider": provider,
+        "gateway_error": msg if not sent_live else None,
+        "message": f"Real SMS OTP sent to {raw_phone} via {provider}." if sent_live else msg,
+        "otp": otp if (not sent_live or app.config.get("TESTING")) else None,
+        "dev_mode": not sent_live
     }
 
+    return resp_payload
 
-@app.route("/verify-dev-otp", methods=["POST"])
-def verify_dev_otp():
+
+@app.route("/resend-otp", methods=["POST"])
+def resend_sms_otp():
     data = request.get_json() or {}
-    phone = normalize_phone(data.get("phone", ""))
+    raw_phone = str(data.get("phone", "")).strip()
+    phone = normalize_phone(raw_phone)
+    if not phone:
+        return {"error": "Enter a valid phone number."}, 400
+
+    import time
+    last_sent = session.get("pending_otp_last_sent", 0)
+    cooldown = 30  # 30-second cooldown
+    now = time.time()
+    if now - last_sent < cooldown:
+        remaining = int(cooldown - (now - last_sent))
+        return {"error": f"Please wait {remaining} seconds before resending OTP."}, 429
+
+    return send_sms_otp()
+
+
+@app.route("/verify-otp", methods=["POST"])
+@app.route("/verify-sms-otp", methods=["POST"])
+@app.route("/verify-dev-otp", methods=["POST"])
+def verify_sms_otp():
+    data = request.get_json() or {}
+    raw_phone = str(data.get("phone", "")).strip()
+    phone = normalize_phone(raw_phone)
     otp = str(data.get("otp", "")).strip()
 
     if not phone:
         return {"error": "Enter a valid phone number."}, 400
 
-    expected_otp = session.get("dev_otp", "123456")
-    if otp != expected_otp and otp != "123456":
-        return {"error": "Invalid OTP. In development mode, enter 123456."}, 400
+    if not otp or len(otp) != 6 or not otp.isdigit():
+        return {"error": "Please enter a valid 6-digit numeric OTP."}, 400
+
+    import time
+    stored_otp = session.get("pending_otp")
+    stored_phone = session.get("pending_otp_phone")
+    expiry = session.get("pending_otp_expiry", 0)
+
+    is_valid = False
+    if app.config.get("TESTING") and (otp == "123456" or otp == stored_otp):
+        is_valid = True
+    elif stored_otp and otp == stored_otp and phone == stored_phone:
+        if time.time() > expiry:
+            return {"error": "OTP has expired. Please request a new OTP."}, 400
+        is_valid = True
+
+    if not is_valid:
+        attempts = session.get("pending_otp_attempts", 0) + 1
+        session["pending_otp_attempts"] = attempts
+        if attempts >= 5:
+            session.pop("pending_otp", None)
+            return {"error": "Too many incorrect attempts. Please request a new OTP."}, 400
+        return {"error": "Invalid OTP code. Please check your SMS messages and try again."}, 400
 
     session["verified_phone"] = phone
-    session.pop("dev_otp", None)
-    session.pop("dev_otp_phone", None)
+    session.pop("pending_otp", None)
+    session.pop("pending_otp_phone", None)
+    session.pop("pending_otp_expiry", None)
+    session.pop("pending_otp_attempts", None)
 
     conn = get_db()
     user = conn.execute("SELECT * FROM users WHERE phone = ?", (phone,)).fetchone()

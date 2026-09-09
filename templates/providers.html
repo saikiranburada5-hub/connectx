@@ -6,6 +6,7 @@
 </head>
 
 <body>
+{% include '_support_widget.html' %}
 
 <div class="page-container">
 
@@ -19,7 +20,7 @@
 
             <p><b>Required Time:</b> {{ time }}</p>
 
-            <h2>🔍 Detected Service: {{ service }}</h2>
+            <h2>🔍 Detected Service: <span class="service-pill" style="margin:0 4px;">{{ service }}</span></h2>
         </div>
 
         {% if providers %}
@@ -32,7 +33,7 @@
 
                 <h3>👷 {{ provider.name }}</h3>
 
-                <p>🛠 Skill: {{ provider.skill }}</p>
+                <p>🛠 Skill: <span class="worker-skill" style="margin:0 4px;">{{ provider.skill }}</span></p>
                 <p>📍 location: {{ provider.location }}</p>
                 <p>⏰ Availability: {{ provider.availability }}</p>
                 <p>📅 Experience: {{ provider.experience }} years</p>

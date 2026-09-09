@@ -103,7 +103,7 @@
         </div>
 
         <div class="status-summary">
-            <div><span>Service</span><strong>{{ service_request.service }}</strong></div>
+            <div><span>Service</span><strong><span class="service-pill" style="margin:0;">{{ service_request.service }}</span></strong></div>
             <div><span>Provider</span><strong>{{ service_request.provider_name }}</strong></div>
             <div><span>Estimated price</span><strong>{{ service_request.estimated_price }}</strong></div>
             <div><span>Payment</span><strong>{{ service_request.payment_status or 'Payment Pending' }}</strong></div>

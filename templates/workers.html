@@ -7,12 +7,13 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
+{% include '_support_widget.html' %}
 <div class="flow-shell">
     <header class="flow-header"><a class="brand-mark" href="{{ url_for('problem_page') }}">CX</a><span>ConnectX</span><span class="step-count">4 of 6</span></header>
     <main class="flow-card wide-card">
         <p class="eyebrow">MATCHED FOR YOU</p>
         <h1>Nearby available providers</h1>
-        <p class="intro">Based on {{ services|join(', ') }} and your saved location.</p>
+        <p class="intro">Based on <span class="service-pill" style="margin:0 4px;">{{ services|join(', ') }}</span> and your saved location.</p>
         <nav class="filter-bar" aria-label="Sort providers">
             <a class="filter-chip {% if current_sort == 'nearest' %}active{% endif %}" href="{{ url_for('workers_page', sort='nearest') }}">Nearest</a>
             <a class="filter-chip {% if current_sort == 'rating' %}active{% endif %}" href="{{ url_for('workers_page', sort='rating') }}">Highest Rated</a>

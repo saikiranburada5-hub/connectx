@@ -59,6 +59,49 @@
             <p id="selectedCount" class="selection-note">No services selected</p>
             <button type="submit" class="primary-action">Continue to Problem Details <span>-></span></button>
         </form>
+
+        <!-- Embedded Interactive Yoyo AI Assistant Chatbot -->
+        <section class="home-yoyo-chat-container" aria-label="Yoyo AI Assistant" style="border: 1px solid #bfdbfe; border-radius: 20px; overflow: hidden; background: #ffffff; box-shadow: 0 14px 34px rgba(30, 64, 175, 0.09); text-align: left; margin-top: 32px;">
+            <header style="display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; background: linear-gradient(135deg, #1e40af, #0284c7); color: #ffffff;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <span class="yoyo-bolt-logo in-header" aria-hidden="true" style="background: rgba(255,255,255,0.2); border: 2px solid rgba(254, 240, 138, 0.85); width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%;">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="#fde047" stroke="#ffffff" stroke-width="0.8">
+                            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                        </svg>
+                    </span>
+                    <div>
+                        <strong style="display: block; font-size: 1.05rem; color: #ffffff; line-height: 1.2;">Yoyo AI Assistant</strong>
+                        <span style="font-size: 0.78rem; color: #e0f2fe; opacity: 0.95;">Ask questions about bookings, tracking, prices, or speak in 5 languages</span>
+                    </div>
+                </div>
+                <span style="font-size: 0.74rem; background: rgba(255,255,255,0.22); padding: 5px 12px; border-radius: 999px; font-weight: 700; color: #ffffff; letter-spacing: 0.02em;">● Online</span>
+            </header>
+
+            <div class="yoyo-messages" id="yoyo-home-messages" style="min-height: 190px; max-height: 270px; padding: 16px; overflow-y: auto; background: #f8fbff; display: grid; gap: 10px;">
+                <div class="yoyo-message yoyo-bot">
+                    👋 Hello <strong>{{ user_name }}</strong>! I’m <strong>Yoyo</strong>, your smart ConnectX assistant. Ask me anything about finding providers, booking services, live tracking, or payments (type below or tap 🎙️)!
+                </div>
+            </div>
+
+            <div class="yoyo-suggestions" style="padding: 10px 16px 4px; display: flex; flex-wrap: wrap; gap: 6px;" aria-label="Suggested questions">
+                <button type="button" data-yoyo-embed-question="How do I book a service?">How do I book?</button>
+                <button type="button" data-yoyo-embed-question="How does pricing work?">Pricing info</button>
+                <button type="button" data-yoyo-embed-question="How do I track my provider?">Live tracking</button>
+                <button type="button" data-yoyo-embed-question="What services are available?">Services list</button>
+                <button type="button" data-yoyo-embed-question="What languages are supported?">Languages</button>
+            </div>
+
+            <div id="yoyo-home-voice-status" class="yoyo-voice-status" style="display:none; margin: 0 16px;">
+                <span>🔴</span> <span id="yoyo-home-voice-msg">Listening... Speak now</span>
+            </div>
+
+            <form class="yoyo-form" id="yoyo-home-form" style="display: flex; gap: 8px; padding: 14px 16px; border-top: 1px solid #e2e8f0; margin: 0; background: #ffffff;">
+                <label class="sr-only" for="yoyo-home-input">Ask Yoyo a question</label>
+                <input id="yoyo-home-input" type="text" autocomplete="off" placeholder="Ask Yoyo anything or tap 🎙️ to speak…" required style="flex: 1; padding: 11px 14px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: 0.92rem;">
+                <button type="button" class="yoyo-mic" id="yoyo-home-mic" aria-label="Speak your question" title="Speak to Yoyo" style="width: 44px; height: 44px; font-size: 1.15rem;">🎙️</button>
+                <button type="submit" style="padding: 10px 22px; border-radius: 10px; font-size: 0.92rem; font-weight: 700; margin: 0;">Send</button>
+            </form>
+        </section>
     </main>
 </div>
 <nav class="bottom-nav" aria-label="Main navigation">

@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
+{% include '_support_widget.html' %}
 <div class="flow-shell">
     <header class="flow-header"><a class="brand-mark" href="{{ url_for('workers_page') }}">CX</a><span>ConnectX</span><span class="step-count">5 of 6</span></header>
     <main class="flow-card">
@@ -16,7 +17,7 @@
         <div class="summary-list">
             <div><span>Customer</span><strong>{{ user.get('name') }}</strong></div>
             <div><span>Location</span><strong>{{ location.get('house_number') }}, {{ location.get('street') }}, {{ location.get('city') }} - {{ location.get('pincode') }}</strong></div>
-            <div><span>Service</span><strong>{{ services|join(', ') }}</strong></div>
+            <div><span>Service</span><strong><span class="service-pill" style="margin:0;">{{ services|join(', ') }}</span></strong></div>
             <div><span>Provider</span><strong>{{ provider.name }}</strong></div>
             <div><span>Estimated price</span><strong>{{ price }}</strong></div>
             <div><span>Requested time</span><strong>{{ problem.get('requested_time') }}</strong></div>

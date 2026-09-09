@@ -1,0 +1,25 @@
+[build]
+  command = "pip install -r requirements.txt"
+  functions = "netlify/functions"
+  publish = "."
+
+[functions]
+  included_files = [
+    "templates/**",
+    "static/**",
+    "gigconnect.db",
+    "*.py"
+  ]
+
+# Direct static assets to the static directory
+[[redirects]]
+  from = "/static/*"
+  to = "/static/:splat"
+  status = 200
+
+# Route all incoming requests to the serverless Flask function
+[[redirects]]
+  from = "/*"
+  to = "/.netlify/functions/app"
+  status = 200
+

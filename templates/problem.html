@@ -7,12 +7,13 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
+{% include '_support_widget.html' %}
 <div class="flow-shell">
     <header class="flow-header"><a class="brand-mark" href="{{ url_for('services_page') }}">CX</a><span>ConnectX</span><span class="step-count">3 of 6</span></header>
     <main class="flow-card">
         <p class="eyebrow">A LITTLE MORE DETAIL</p>
         <h1>Tell us about your problem</h1>
-        <p class="intro">Selected: <strong>{{ services|join(', ') }}</strong></p>
+        <p class="intro">Selected: <span class="service-pill" style="margin:0 4px;">{{ services|join(', ') }}</span></p>
         {% if error %}<div class="form-error">{{ error }}</div>{% endif %}
         <form method="POST" enctype="multipart/form-data" class="flow-form">
             <div class="description-label">

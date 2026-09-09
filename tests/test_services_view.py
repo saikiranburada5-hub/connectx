@@ -38,6 +38,38 @@ class ServicesVoiceTestCase(unittest.TestCase):
         self.assertIn("SILENCE_LIMIT_MS = 6000", html)
         self.assertIn("continuous = true", html)
 
+    def test_services_page_and_styles_have_purple_theme(self):
+        with self.client.session_transaction() as sess:
+            sess["user_id"] = 1
+            sess["name"] = "Karthik"
+            sess["role"] = "customer"
+            sess["language"] = "English"
+            sess["service_location"] = {
+                "address": "MG Road",
+                "house_number": "12",
+                "street": "MG Road",
+                "city": "Bengaluru",
+                "pincode": "560001",
+                "latitude": "12.9716",
+                "longitude": "77.5946",
+            }
+
+        with self.client.get("/services") as response:
+            self.assertEqual(response.status_code, 200)
+            html = response.get_data(as_text=True)
+
+        # Ensure services like Electrician and Plumber are present in categories
+        self.assertIn("Electrician", html)
+        self.assertIn("Plumber", html)
+
+        # Check static CSS contains purple color variables and classes
+        with self.client.get("/static/styles.css") as css_response:
+            self.assertEqual(css_response.status_code, 200)
+            css_text = css_response.get_data(as_text=True)
+        self.assertIn("--purple", css_text)
+        self.assertIn(".service-option", css_text)
+        self.assertIn(".worker-skill", css_text)
+
 
 if __name__ == "__main__":
     unittest.main()

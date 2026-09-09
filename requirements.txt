@@ -1,3 +1,9 @@
 flask
 firebase-admin
 python-dotenv
+requests
+serverless-wsgi
+werkzeug
+gunicorn
+
+
