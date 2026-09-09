@@ -16,7 +16,6 @@
         </div>
         <nav style="display: flex; align-items: center; gap: 16px; font-size: 0.92rem;">
             <a href="{{ url_for('services_page') }}" style="text-decoration: none; color: var(--navy); font-weight: 700;">Services</a>
-            <a href="{{ url_for('api_v1.api_docs_v1') }}" target="_blank" style="text-decoration: none; color: var(--purple-dark); font-weight: 700;">⚡ API Docs</a>
             <a href="{{ url_for('help_page') }}" style="text-decoration: none; color: var(--muted); font-weight: 600;">Help</a>
             <a href="{{ url_for('feedback_page') }}" style="text-decoration: none; color: var(--muted); font-weight: 600;">Feedback</a>
             <a href="{{ url_for('login') }}" class="secondary-action" style="min-height: 36px; padding: 6px 14px; font-size: 0.85rem; margin: 0;">Login</a>
@@ -34,9 +33,6 @@
             </a>
             <a href="{{ url_for('services_page') }}" style="text-decoration: none;">
                 <button type="button" class="secondary-action" style="margin: 0; min-height: 48px; padding: 11px 22px; font-size: 1rem;">🛠 Explore Services</button>
-            </a>
-            <a href="{{ url_for('api_v1.api_docs_v1') }}" target="_blank" style="text-decoration: none;">
-                <button type="button" class="secondary-action" style="margin: 0; min-height: 48px; padding: 11px 22px; font-size: 1rem; border-color: var(--purple-border); color: var(--purple-dark);">⚡ REST API Docs</button>
             </a>
         </div>
 
