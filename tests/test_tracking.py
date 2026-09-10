@@ -187,6 +187,44 @@ class WorkerTrackingTests(unittest.TestCase):
         response = client.post(f"/profile/address/{saved['id']}/delete")
         self.assertEqual(response.status_code, 302)
 
+    def test_login_page_renders_connectx_logo(self):
+        client = app.test_client()
+        response = client.get("/login")
+        body = response.get_data(as_text=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("connectx_logo.svg", body)
+        self.assertIn('alt="connectX"', body)
+
+    def test_feedback_submission_stores_category_and_rating(self):
+        client = app.test_client()
+        with client.session_transaction() as client_session:
+            client_session["user_id"] = 1
+            client_session["role"] = "customer"
+
+        response = client.get("/feedback")
+        body = response.get_data(as_text=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("feedback-category-grid", body)
+        self.assertIn("star-rating-row", body)
+        self.assertIn("quick-tags-container", body)
+
+        post_resp = client.post("/feedback", data={
+            "message": "Super smooth booking and on-time service!",
+            "category": "Worker & Service Quality",
+            "rating": "5"
+        })
+        self.assertEqual(post_resp.status_code, 302)
+
+        conn = get_db()
+        fb = conn.execute(
+            "SELECT * FROM app_feedback WHERE user_id = 1 ORDER BY id DESC LIMIT 1"
+        ).fetchone()
+        conn.close()
+        self.assertIsNotNone(fb)
+        self.assertEqual(fb["message"], "Super smooth booking and on-time service!")
+        self.assertEqual(fb["category"], "Worker & Service Quality")
+        self.assertEqual(fb["rating"], 5)
+
 
 if __name__ == "__main__":
     unittest.main()

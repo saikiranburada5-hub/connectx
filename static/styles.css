@@ -130,6 +130,26 @@ body > div {
     margin-bottom: 10px;
 }
 
+.login-brand-header {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 18px;
+    padding: 6px 0;
+}
+
+.login-brand-logo {
+    max-width: 230px;
+    height: auto;
+    display: block;
+    filter: drop-shadow(0 4px 12px rgba(4, 11, 34, 0.08));
+    transition: transform 0.25s ease;
+}
+
+.login-brand-logo:hover {
+    transform: scale(1.02);
+}
+
 .brand-symbol {
     display: inline-grid;
     width: 46px;
@@ -168,10 +188,26 @@ body > div {
     box-shadow: inset 0 0 0 1px rgba(23, 105, 170, 0.04);
 }
 
+.detail-symbol svg {
+    display: block;
+    width: 17px;
+    height: 17px;
+    stroke: var(--blue);
+    stroke-width: 2.2;
+}
+
 .button-symbol {
     margin-right: 8px;
     color: currentColor;
     font-size: 1.05rem;
+}
+
+.button-symbol svg {
+    display: inline-block;
+    vertical-align: middle;
+    width: 16px;
+    height: 16px;
+    stroke: currentColor;
 }
 
 .back-symbol {
@@ -445,10 +481,18 @@ input[readonly] {
     height: 38px;
     place-items: center;
     border-radius: 12px;
-    color: #fff;
-    background: var(--navy);
+    color: transparent;
+    background: url('/static/connectx_mark.svg') no-repeat center / cover;
     text-decoration: none;
     letter-spacing: 0;
+    box-shadow: 0 4px 12px rgba(4, 11, 34, 0.15);
+    overflow: hidden;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.brand-mark:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 16px rgba(0, 102, 255, 0.25);
 }
 
 .step-count {
@@ -2098,6 +2142,117 @@ input[readonly] {
 }
 
 .feedback-corner:hover { background: #eef6ff; }
+
+/* Feedback Page Styles */
+.feedback-section-group {
+    margin-bottom: 20px;
+    text-align: left;
+}
+
+.feedback-group-title {
+    display: block;
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: var(--navy);
+    margin-bottom: 8px;
+}
+
+.feedback-category-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
+.feedback-cat-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 9px 12px;
+    background: #f8fafc;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--navy);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: left;
+    margin: 0;
+}
+
+.feedback-cat-btn:hover {
+    background: #f0f9ff;
+    border-color: #93c5fd;
+    transform: translateY(-1px);
+}
+
+.feedback-cat-btn.active {
+    background: #eff6ff;
+    border-color: #2563eb;
+    color: #1d4ed8;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.star-rating-row {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+.star-btn {
+    background: none;
+    border: none;
+    font-size: 1.9rem;
+    color: #cbd5e1;
+    cursor: pointer;
+    padding: 0 4px;
+    margin: 0;
+    line-height: 1;
+    transition: transform 0.15s ease, color 0.15s ease;
+}
+
+.star-btn:hover {
+    transform: scale(1.2);
+}
+
+.star-btn.active {
+    color: #f59e0b;
+    text-shadow: 0 2px 8px rgba(245, 158, 11, 0.35);
+}
+
+.quick-tags-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+
+.quick-tag-chip {
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    border-radius: 999px;
+    padding: 6px 13px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #334155;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin: 0;
+}
+
+.quick-tag-chip:hover {
+    background: #e2e8f0;
+    border-color: #94a3b8;
+}
+
+.quick-tag-chip.active {
+    background: #dbeafe;
+    border-color: #3b82f6;
+    color: #1d4ed8;
+    font-weight: 700;
+    box-shadow: 0 2px 6px rgba(59, 130, 246, 0.2);
+}
 
 .welcome-message {
     margin-bottom: 8px;

@@ -173,10 +173,20 @@ def init_db():
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id INTEGER NOT NULL,
                 message TEXT NOT NULL,
+                category TEXT DEFAULT 'General',
+                rating INTEGER DEFAULT 5,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (user_id) REFERENCES users(id)
             )
         """)
+
+        existing_feedback_columns = {row[1] for row in conn.execute("PRAGMA table_info(app_feedback)").fetchall()}
+        for column_name, column_sql in [
+            ("category", "category TEXT DEFAULT 'General'"),
+            ("rating", "rating INTEGER DEFAULT 5"),
+        ]:
+            if column_name not in existing_feedback_columns:
+                conn.execute(f"ALTER TABLE app_feedback ADD COLUMN {column_sql}")
 
         conn.commit()
         conn.close()

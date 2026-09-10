@@ -10,12 +10,12 @@
 <div class="flow-shell">
     <!-- Top Navigation Bar -->
     <header class="flow-header" style="justify-content: space-between; margin-bottom: 24px;">
-        <div style="display: flex; align-items: center; gap: 12px;">
-            <a class="brand-mark" href="{{ url_for('home') }}">CX</a>
-            <span>ConnectX</span>
-        </div>
+        <a href="{{ url_for('home') }}" style="display: inline-flex; align-items: center; text-decoration: none;" aria-label="ConnectX">
+            <img src="{{ url_for('static', filename='connectx_logo.svg') }}" alt="connectX" style="height: 36px; width: auto; max-width: 170px; display: block;">
+        </a>
         <nav style="display: flex; align-items: center; gap: 16px; font-size: 0.92rem;">
             <a href="{{ url_for('services_page') }}" style="text-decoration: none; color: var(--navy); font-weight: 700;">Services</a>
+            <a href="{{ url_for('payments_page') }}" style="text-decoration: none; color: var(--muted); font-weight: 600;">Payments</a>
             <a href="{{ url_for('help_page') }}" style="text-decoration: none; color: var(--muted); font-weight: 600;">Help</a>
             <a href="{{ url_for('feedback_page') }}" style="text-decoration: none; color: var(--muted); font-weight: 600;">Feedback</a>
             <a href="{{ url_for('login') }}" class="secondary-action" style="min-height: 36px; padding: 6px 14px; font-size: 0.85rem; margin: 0;">Login</a>
@@ -24,12 +24,17 @@
 
     <main class="flow-card wide-card">
         <p class="eyebrow">COOPERATIVE GIG PLATFORM</p>
-        <h1>🤝 ConnectX</h1>
+        <h1 style="display: flex; align-items: center; margin: 12px 0 16px;">
+            <img src="{{ url_for('static', filename='connectx_logo.svg') }}" alt="connectX" style="height: 56px; width: auto; max-width: 270px; display: block;">
+        </h1>
         <p class="intro">Connect directly with verified local service providers for home repairs, maintenance, cleaning, and more.</p>
 
         <div style="text-align: left; margin: 24px 0; display: flex; gap: 12px; flex-wrap: wrap;">
             <a href="{{ url_for('login') }}" style="text-decoration: none;">
-                <button type="button" style="margin: 0; padding: 13px 28px; font-size: 1rem;">🔐 Login / Get Started</button>
+                <button type="button" style="margin: 0; padding: 13px 28px; font-size: 1rem; display: inline-flex; align-items: center; gap: 8px;">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><path d="m9 12 2 2 4-4"></path></svg>
+                    Login / Get Started
+                </button>
             </a>
             <a href="{{ url_for('services_page') }}" style="text-decoration: none;">
                 <button type="button" class="secondary-action" style="margin: 0; min-height: 48px; padding: 11px 22px; font-size: 1rem;">🛠 Explore Services</button>
@@ -61,6 +66,7 @@
         <span>✉</span>Requests
         {% if unread_request_count %}<span class="nav-badge">{{ unread_request_count }}</span>{% endif %}
     </a>
+    <a href="{{ url_for('payments_page') }}"><span>💳</span>Payments</a>
     <a href="{{ url_for('help_page') }}"><span>?</span>Help</a>
 </nav>
 </body>

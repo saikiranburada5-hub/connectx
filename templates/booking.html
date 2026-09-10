@@ -36,6 +36,7 @@
         <span>✉</span>Requests
         {% if unread_request_count %}<span class="nav-badge">{{ unread_request_count }}</span>{% endif %}
     </a>
+    <a href="{{ url_for('payments_page') }}"><span>💳</span>Payments</a>
     <a href="{{ url_for('help_page') }}"><span>?</span>Help</a>
 </nav>
 </body>

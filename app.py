@@ -337,16 +337,58 @@ def feedback_page():
         return redirect(url_for("login"))
     if request.method == "POST":
         message = request.form.get("message", "").strip()
+        category = request.form.get("category", "General Experience").strip()
+        rating_raw = request.form.get("rating", "5")
+        try:
+            rating = int(rating_raw)
+        except (ValueError, TypeError):
+            rating = 5
+
         if message:
             conn = get_db()
             conn.execute(
-                "INSERT INTO app_feedback (user_id, message) VALUES (?, ?)",
-                (session["user_id"], message),
+                "INSERT INTO app_feedback (user_id, message, category, rating) VALUES (?, ?, ?, ?)",
+                (session["user_id"], message, category, rating),
             )
             conn.commit()
             conn.close()
             return redirect(url_for("feedback_page", sent=1))
     return render_template("feedback.html", sent=request.args.get("sent") == "1")
+
+
+@app.route("/payments")
+def payments_page():
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+    conn = get_db()
+    payments = conn.execute(
+        """
+        SELECT id, service, provider_name, estimated_price, payment_status, status, created_at
+        FROM service_requests
+        WHERE user_id = ?
+        ORDER BY id DESC
+        """,
+        (session["user_id"],),
+    ).fetchall()
+    conn.close()
+
+    total_paid = 0
+    total_pending = 0
+    for p in payments:
+        raw_price = str(p["estimated_price"] or "")
+        digits = "".join([c for c in raw_price if c.isdigit()])
+        price_val = int(digits) if digits else 0
+        if p["payment_status"] == "Paid":
+            total_paid += price_val
+        elif p["status"] == "Service Completed":
+            total_pending += price_val
+
+    return render_template(
+        "payments.html",
+        payments=payments,
+        total_paid=total_paid,
+        total_pending=total_pending,
+    )
 
 
 @app.route("/profile", methods=["GET", "POST"])

@@ -8,16 +8,342 @@
 </head>
 <body>
 {% include '_support_widget.html' %}
-<div class="flow-shell"><main class="flow-card feedback-page">
-    <p class="eyebrow">YOUR VOICE MATTERS</p>
-    <h1>Tell us about ConnectX</h1>
-    <p class="intro">Help us make booking and tracking services better.</p>
-    {% if sent %}<div class="paid-banner">Thanks for your feedback.</div>{% endif %}
-    <form method="POST" class="feedback-form">
-        <label for="message">Your feedback</label>
-        <textarea id="message" name="message" rows="7" placeholder="What can we improve?" required></textarea>
-        <button class="primary-action" type="submit">Send feedback <span>-></span></button>
-    </form>
-</main></div>
+<div class="flow-shell">
+    <header class="flow-header">
+        <a class="brand-mark" href="{{ url_for('services_page') }}">CX</a>
+        <span>ConnectX</span>
+        <span class="step-count">FEEDBACK</span>
+    </header>
+    <main class="flow-card feedback-page wide-card">
+        <p class="eyebrow">YOUR VOICE MATTERS</p>
+        <h1>Tell us about ConnectX</h1>
+        <p class="intro">Help us make booking, tracking, and service quality better for everyone.</p>
+
+        {% if sent %}
+        <div class="paid-banner" style="margin-bottom: 24px; font-size: 1.05rem;">
+            ✨ Thank you! Your feedback has been received and helps improve ConnectX.
+        </div>
+        {% endif %}
+
+        <form method="POST" class="feedback-form" id="feedbackForm">
+            <!-- 1. Category Selection -->
+            <div class="feedback-section-group">
+                <label class="feedback-group-title">Select Topic</label>
+                <input type="hidden" name="category" id="feedbackCategory" value="General Experience">
+                <div class="feedback-category-grid" role="radiogroup" aria-label="Feedback Topic">
+                    <button type="button" class="feedback-cat-btn active" data-category="General Experience" data-hint="What was your overall experience with ConnectX?">
+                        <span>🌟</span> General Experience
+                    </button>
+                    <button type="button" class="feedback-cat-btn" data-category="Worker & Service Quality" data-hint="How was the quality, professionalism, and punctuality of the provider?">
+                        <span>🛠️</span> Worker Quality
+                    </button>
+                    <button type="button" class="feedback-cat-btn" data-category="App & Navigation" data-hint="How was the app speed, live map tracking, and ease of use?">
+                        <span>⚡</span> App & Speed
+                    </button>
+                    <button type="button" class="feedback-cat-btn" data-category="Payment & Pricing" data-hint="How was the pricing transparency and payment process?">
+                        <span>💳</span> Payments & Price
+                    </button>
+                    <button type="button" class="feedback-cat-btn" data-category="Feature Request" data-hint="What new features or services would you like to see?">
+                        <span>💡</span> Feature Request
+                    </button>
+                    <button type="button" class="feedback-cat-btn" data-category="Report an Issue" data-hint="What issue or bug did you encounter?">
+                        <span>🐞</span> Report an Issue
+                    </button>
+                </div>
+            </div>
+
+            <!-- 2. Rating Selector -->
+            <div class="feedback-section-group">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <label class="feedback-group-title" style="margin: 0;">Rating</label>
+                    <span id="ratingLabel" style="font-weight: 700; color: #d97706; font-size: 0.95rem;">5 - Excellent</span>
+                </div>
+                <input type="hidden" name="rating" id="feedbackRating" value="5">
+                <div class="star-rating-row" id="starRatingRow" aria-label="Choose rating 1 to 5">
+                    <button type="button" class="star-btn active" data-value="1" title="1 - Poor">★</button>
+                    <button type="button" class="star-btn active" data-value="2" title="2 - Needs Improvement">★</button>
+                    <button type="button" class="star-btn active" data-value="3" title="3 - Average">★</button>
+                    <button type="button" class="star-btn active" data-value="4" title="4 - Good">★</button>
+                    <button type="button" class="star-btn active" data-value="5" title="5 - Excellent">★</button>
+                </div>
+            </div>
+
+            <!-- 3. Quick Feedback Tags (Click to toggle into message) -->
+            <div class="feedback-section-group">
+                <label class="feedback-group-title">Quick Tags <span style="font-size: 0.8rem; font-weight: normal; color: var(--muted);">(Tap to add to your feedback)</span></label>
+                <div class="quick-tags-container" id="quickTags">
+                    <button type="button" class="quick-tag-chip" data-tag="⚡ Fast and easy booking">⚡ Fast Booking</button>
+                    <button type="button" class="quick-tag-chip" data-tag="👷 Professional and polite worker">👷 Great Worker</button>
+                    <button type="button" class="quick-tag-chip" data-tag="📱 Smooth app experience">📱 Smooth App</button>
+                    <button type="button" class="quick-tag-chip" data-tag="💰 Fair and upfront pricing">💰 Fair Pricing</button>
+                    <button type="button" class="quick-tag-chip" data-tag="⏱️ Arrived on time">⏱️ On-Time</button>
+                    <button type="button" class="quick-tag-chip" data-tag="🗺️ Accurate live tracking">🗺️ Accurate Tracking</button>
+                    <button type="button" class="quick-tag-chip" data-tag="✨ Clean and neat job">✨ Clean Job</button>
+                    <button type="button" class="quick-tag-chip" data-tag="🔧 Need more local providers">🔧 Need More Providers</button>
+                    <button type="button" class="quick-tag-chip" data-tag="💬 Helpful customer support">💬 Helpful Support</button>
+                </div>
+            </div>
+
+            <!-- 4. Textarea with Voice Support -->
+            <div class="feedback-section-group">
+                <div class="description-label" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <label for="message" class="feedback-group-title" style="margin: 0;">Your Feedback</label>
+                    <div class="voice-toolbar">
+                        <select id="voiceLangSelect" class="voice-lang-select" aria-label="Voice input language" title="Select speech language">
+                            <option value="en-IN" selected>English (India)</option>
+                            <option value="hi-IN">हिन्दी (Hindi)</option>
+                            <option value="ta-IN">தமிழ் (Tamil)</option>
+                            <option value="te-IN">తెలుగు (Telugu)</option>
+                            <option value="kn-IN">ಕನ್ನಡ (Kannada)</option>
+                        </select>
+                        <button type="button" class="voice-button" id="voiceButton" aria-label="Describe feedback by voice" title="Click to speak">
+                            <span id="voiceIcon">🎙️</span> <span id="voiceBtnText">Speak</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="voiceLiveStatus" class="voice-live-status" style="display:none; margin-bottom: 10px;">
+                    <span id="voiceStatusDot">🔴</span> <span id="voiceMessage">Listening... speak into your microphone.</span>
+                </div>
+
+                <textarea id="message" name="message" rows="6" placeholder="What did you like or what can we improve? Tap quick tags above or speak using mic..." required></textarea>
+            </div>
+
+            <button class="primary-action" type="submit" style="margin-top: 12px;">Send feedback <span>-></span></button>
+        </form>
+    </main>
+</div>
+
+<nav class="bottom-nav" aria-label="Main navigation">
+    <a href="{{ url_for('services_page') }}"><span>⌂</span>Home</a>
+    <a href="{{ url_for('profile_page') }}"><span>◎</span>Profile</a>
+    <a href="{{ url_for('requests_page') }}" class="request-link">
+        <span>✉</span>Requests
+        {% if unread_request_count %}<span class="nav-badge">{{ unread_request_count }}</span>{% endif %}
+    </a>
+    <a href="{{ url_for('payments_page') }}"><span>💳</span>Payments</a>
+    <a href="{{ url_for('help_page') }}"><span>?</span>Help</a>
+</nav>
+
+<script>
+// Feedback Category Selection
+const categoryBtns = document.querySelectorAll('.feedback-cat-btn');
+const categoryInput = document.getElementById('feedbackCategory');
+const messageTextarea = document.getElementById('message');
+
+categoryBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+        categoryBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const selectedCat = btn.dataset.category;
+        categoryInput.value = selectedCat;
+        if (btn.dataset.hint && !messageTextarea.value.trim()) {
+            messageTextarea.placeholder = btn.dataset.hint;
+        }
+    });
+});
+
+// Interactive Star Rating
+const starBtns = document.querySelectorAll('.star-btn');
+const ratingInput = document.getElementById('feedbackRating');
+const ratingLabel = document.getElementById('ratingLabel');
+const ratingNames = {
+    '1': '1 - Poor',
+    '2': '2 - Needs Improvement',
+    '3': '3 - Average',
+    '4': '4 - Good',
+    '5': '5 - Excellent'
+};
+
+function setRating(val) {
+    ratingInput.value = val;
+    ratingLabel.textContent = ratingNames[val] || `${val} Stars`;
+    starBtns.forEach(btn => {
+        const btnVal = parseInt(btn.dataset.value, 10);
+        if (btnVal <= val) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    });
+}
+
+starBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+        const val = parseInt(btn.dataset.value, 10);
+        setRating(val);
+    });
+});
+
+// Interactive Quick Tags Toggle
+const quickTags = document.querySelectorAll('.quick-tag-chip');
+quickTags.forEach(chip => {
+    chip.addEventListener('click', () => {
+        const tagText = chip.dataset.tag;
+        const currentVal = messageTextarea.value;
+        if (chip.classList.contains('active')) {
+            // Remove tag from textarea
+            chip.classList.remove('active');
+            let updated = currentVal.replace(tagText, '').replace(/,\s*,/g, ',').replace(/\s\s+/g, ' ').trim();
+            if (updated.startsWith(',')) updated = updated.substring(1).trim();
+            if (updated.endsWith(',')) updated = updated.substring(0, updated.length - 1).trim();
+            messageTextarea.value = updated;
+        } else {
+            // Add tag to textarea
+            chip.classList.add('active');
+            if (currentVal.trim().length > 0) {
+                messageTextarea.value = currentVal.trim() + '. ' + tagText;
+            } else {
+                messageTextarea.value = tagText;
+            }
+        }
+    });
+});
+
+// Voice Input Support
+const voiceButton = document.getElementById('voiceButton');
+const voiceIcon = document.getElementById('voiceIcon');
+const voiceBtnText = document.getElementById('voiceBtnText');
+const voiceLangSelect = document.getElementById('voiceLangSelect');
+const voiceLiveStatus = document.getElementById('voiceLiveStatus');
+const voiceMessage = document.getElementById('voiceMessage');
+
+const langMap = {
+    'Hindi': 'hi-IN',
+    'Tamil': 'ta-IN',
+    'Telugu': 'te-IN',
+    'Kannada': 'kn-IN',
+    'English': 'en-IN'
+};
+const appLang = window.gigconnectLanguage || '{{ session.get("language", "English") }}';
+if (langMap[appLang] && voiceLangSelect) {
+    voiceLangSelect.value = langMap[appLang];
+}
+
+let recognition = null;
+let isListening = false;
+let baseText = '';
+let accumulatedFinalText = '';
+let silenceTimer = null;
+const SILENCE_LIMIT_MS = 6000;
+const SpeechRecognitionClass = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+function resetSilenceTimer() {
+    if (silenceTimer) clearTimeout(silenceTimer);
+    silenceTimer = setTimeout(() => {
+        if (isListening) stopListening();
+    }, SILENCE_LIMIT_MS);
+}
+
+function clearSilenceTimer() {
+    if (silenceTimer) {
+        clearTimeout(silenceTimer);
+        silenceTimer = null;
+    }
+}
+
+function updateStatus(msg, state = 'listening') {
+    if (!voiceLiveStatus) return;
+    voiceLiveStatus.style.display = 'flex';
+    voiceLiveStatus.className = 'voice-live-status ' + (state === 'error' ? 'is-error' : state === 'listening' ? 'is-listening' : '');
+    voiceMessage.textContent = msg;
+}
+
+function hideStatus() {
+    if (voiceLiveStatus) voiceLiveStatus.style.display = 'none';
+}
+
+function startListening() {
+    if (!SpeechRecognitionClass) {
+        updateStatus('Voice recognition is not supported in this browser.', 'error');
+        return;
+    }
+    try {
+        if (recognition) {
+            try { recognition.abort(); } catch (e) {}
+        }
+        recognition = new SpeechRecognitionClass();
+        recognition.lang = voiceLangSelect ? voiceLangSelect.value : 'en-IN';
+        recognition.continuous = true;
+        recognition.interimResults = true;
+
+        baseText = messageTextarea.value.trim();
+        accumulatedFinalText = '';
+
+        recognition.onstart = () => {
+            isListening = true;
+            voiceButton.classList.add('is-listening');
+            voiceIcon.textContent = '⏹️';
+            voiceBtnText.textContent = 'Stop';
+            updateStatus('Listening... speak your feedback now.', 'listening');
+            resetSilenceTimer();
+        };
+
+        recognition.onresult = (event) => {
+            resetSilenceTimer();
+            let interimTranscript = '';
+            let currentFinal = '';
+            for (let i = 0; i < event.results.length; i++) {
+                const result = event.results[i];
+                if (result.isFinal) {
+                    currentFinal += result[0].transcript + ' ';
+                } else {
+                    interimTranscript += result[0].transcript;
+                }
+            }
+            accumulatedFinalText = currentFinal;
+            const spoken = (accumulatedFinalText + interimTranscript).trim();
+            if (spoken) {
+                messageTextarea.value = baseText ? (baseText + ' ' + spoken) : spoken;
+            }
+        };
+
+        recognition.onerror = (event) => {
+            if (event.error === 'no-speech') return;
+            isListening = false;
+            clearSilenceTimer();
+            voiceButton.classList.remove('is-listening');
+            voiceIcon.textContent = '🎙️';
+            voiceBtnText.textContent = 'Speak';
+            updateStatus('Microphone stopped. Tap Speak to try again.', 'error');
+        };
+
+        recognition.onend = () => {
+            isListening = false;
+            clearSilenceTimer();
+            voiceButton.classList.remove('is-listening');
+            voiceIcon.textContent = '🎙️';
+            voiceBtnText.textContent = 'Speak';
+            if (messageTextarea.value.trim()) {
+                updateStatus('Voice feedback captured.', 'success');
+                setTimeout(hideStatus, 3000);
+            }
+        };
+
+        recognition.start();
+    } catch (err) {
+        console.error('Speech recognition start error:', err);
+    }
+}
+
+function stopListening() {
+    isListening = false;
+    clearSilenceTimer();
+    if (recognition) {
+        try { recognition.stop(); } catch (e) {}
+    }
+    voiceButton.classList.remove('is-listening');
+    voiceIcon.textContent = '🎙️';
+    voiceBtnText.textContent = 'Speak';
+    hideStatus();
+}
+
+if (voiceButton) {
+    voiceButton.addEventListener('click', () => {
+        if (isListening) stopListening();
+        else startListening();
+    });
+}
+</script>
 </body>
 </html>

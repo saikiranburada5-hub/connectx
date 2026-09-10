@@ -105,12 +105,13 @@
     </main>
 </div>
 <nav class="bottom-nav" aria-label="Main navigation">
-    <a href="{{ url_for('services_page') }}"><span>⌂</span>Home</a>
+    <a href="{{ url_for('services_page') }}" class="active"><span>⌂</span>Home</a>
     <a href="{{ url_for('profile_page') }}"><span>◎</span>Profile</a>
     <a href="{{ url_for('requests_page') }}" class="request-link">
         <span>✉</span>Requests
         {% if unread_request_count %}<span class="nav-badge">{{ unread_request_count }}</span>{% endif %}
     </a>
+    <a href="{{ url_for('payments_page') }}"><span>💳</span>Payments</a>
     <a href="{{ url_for('help_page') }}"><span>?</span>Help</a>
 </nav>
 
